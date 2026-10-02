@@ -1,0 +1,16 @@
+{
+  "name": "mediaforge-gx",
+  "version": "0.4.1",
+  "private": true,
+  "description": "Opera GX/Chromium media toolkit with cooperative deep scanning, virtualized bulk media UI, best-quality X downloads, smart content filtering, long-video-safe high-fidelity GIF export, streaming-provider awareness, ZIP export, and Picviewer-style viewing.",
+  "scripts": {
+    "test": "node --test tests/*.test.cjs",
+    "check": "node tools/validate.cjs",
+    "qa": "npm test && npm run check",
+    "perf:model": "node tools/perf-model.cjs",
+    "perf:ui": "node tools/perf-ui.cjs",
+    "perf:smart": "node tools/perf-smart.cjs",
+    "perf:first": "node tools/perf-first-content.cjs"
+  },
+  "license": "MIT"
+}

@@ -2,10 +2,17 @@
 
 A local-first Opera GX / Chromium media toolkit for **deep current-page media discovery**, **high-speed bulk selection/filtering**, **best-quality X.com downloads**, **real GIF export**, **ZIP packaging**, and **Picviewer CE+ integration**.
 
-## 0.4.0 highlights — smart content + long-GIF reliability
+## 0.4.1 highlights — instant real content, deep scan later
 
 
-MediaForge GX 0.4 keeps the complete 0.3.1 discovery/downloader feature set and adds local content intelligence, first-class audio/provider awareness, and a rebuilt long-video GIF path while preserving the no-lag architecture:
+MediaForge GX 0.4.1 keeps the complete 0.4 feature set but changes **when** work happens so the user sees useful media first instead of waiting for every stylesheet, iframe, resource-timing entry, and page-chrome asset. The side panel now has two lanes:
+
+1. **Instant content lane** — top-frame semantic/visible media, X tweet articles, already-captured X API media, and provider-page records. This paints first.
+2. **Lossless deep lane** — the existing all-frame DOM + Shadow DOM + stylesheet + metadata + resource cache scan runs afterward at cooperative/background priority and merges into the same result set.
+
+No media source was removed. **All** still exposes the complete deep result set. On X, Best Content now explicitly recognizes post media (`pbs.twimg.com/media`, `video.twimg.com`) and demotes profile images, sports/product chrome, sidebar/navigation assets, trackers, and promoted/site UI.
+
+The existing performance/reliability architecture remains:
 
 - on-demand cooperative deep snapshots with `scheduler.yield()` when available and safe fallbacks elsewhere;
 - dirty-article X updates instead of full-article rescans on every mutation;
@@ -16,6 +23,7 @@ MediaForge GX 0.4 keeps the complete 0.3.1 discovery/downloader feature set and 
 - animation-frame-coalesced UI rerenders and debounced search;
 - metadata request single-flight + TTL caching;
 - a checked-in workload performance contract (`npm run perf:model`);
+- a time-to-first-useful-media contract (`npm run perf:first`);
 - pre-indexed search/sort fields and one filter-state snapshot per render (`npm run perf:ui`).
 - **Best content** quick filtering that hides probable ads/promos, trackers, icons, emoji, avatars, loading art, and stream fragments without deleting them; **All** always restores the complete scan.
 - YouTube / Spotify / SoundCloud / Bandcamp provider-aware semantic records, plus direct MP3/M4A/AAC/OGG/Opus/WAV/FLAC discovery.

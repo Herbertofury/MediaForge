@@ -6,6 +6,10 @@
 
 ---
 
+## 0.4.1: real content first
+
+MediaForge now uses an **instant content lane** before the complete deep scan. X tweet/post media and other semantic/visible content can appear immediately, while iframe, Shadow DOM, stylesheet, metadata, and network-resource discovery continues afterward and merges without deleting anything. X sports widgets, profile/avatar assets, sidebar/navigation chrome, trackers, and other page furniture are strongly demoted from **Best content**.
+
 ## What MediaForge GX does
 
 MediaForge GX combines the strongest workflows from bulk image downloaders, media sniffers, dedicated X/Twitter downloaders, and image viewers without turning browsing into a permanent full-page crawl.

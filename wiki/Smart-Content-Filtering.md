@@ -19,3 +19,8 @@ This is a ranking/filtering system, not deletion. A false positive can always be
 ## Performance design
 
 Classification is precomputed rather than rerun on every keystroke/filter change. The `npm run perf:smart` benchmark uses 30,000 media records and parity-checks cached filtering against recomputing the same classifier every pass.
+
+
+## X-specific classification
+
+0.4.1 treats `pbs.twimg.com/media/*` and `video.twimg.com/*` post media as high-priority content, while profile images, `ton.twimg.com` sports/product assets, `abs.twimg.com` UI assets, sidebar/navigation chrome, trackers, and promoted placements are demoted from Best Content. Nothing is deleted; switch to **All** to see the full lossless scan.

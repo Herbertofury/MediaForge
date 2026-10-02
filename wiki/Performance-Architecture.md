@@ -87,3 +87,23 @@ Automatic metadata enrichment is scheduled at background priority after the init
 Media classification is computed once per prepared media record and cached. Quick-filter passes reuse that cached result instead of rescoring dimensions, URL/name hints, source semantics, and provider metadata on every search/filter interaction.
 
 `npm run perf:smart` parity-checks the cached classifier against recomputing the identical classifier across 30,000 records. On the release environment, median time fell from **55.362 ms** to **0.246 ms** (**225.2x faster; 99.56% less CPU time**) with the same **26,063 result records**.
+
+
+## 0.4.1 instant-content lane
+
+The 0.4.1 panel no longer waits for the complete deep scan before showing useful cards. It first requests a **top-frame priority snapshot** containing semantic/visible media and, on X, currently mounted tweet-article media plus any X API media already intercepted. The panel paints that result and only then starts the lossless all-frame deep scan.
+
+This moves the expensive work *after* first useful content without removing it:
+
+```mermaid
+flowchart LR
+    A[Open side panel] --> B[Top-frame priority snapshot]
+    B --> C[Paint real content]
+    C --> D[Background all-frame deep scan]
+    D --> E[Merge complete result set]
+    E --> F[Background metadata enrichment]
+```
+
+`npm run perf:first` models the time-to-first-useful-X-media boundary. The release workload uses 24,000 generic page-media nodes, 18,000 stylesheet rules, 32,000 resource entries, and 72 semantic article-media candidates. On this release environment, median pre-first-content time measured **3.304 ms -> 0.006 ms** (**548.06x faster; 99.82% less work time**) while returning the same first post-media URL. It is a deterministic microbenchmark of the staged architecture, not a promise that every real page opens 548x faster.
+
+The deep scan also fixes a duplicated open-Shadow-DOM root registration and service-worker deep scans are single-flight per tab, eliminating two avoidable sources of duplicate work.

@@ -1,14 +1,37 @@
 # X / Twitter
 
-X commonly feeds video elements from `blob:` URLs while the downloadable direct MP4 variants live in X's own JSON responses. MediaForge therefore uses a MAIN-world response interceptor plus an isolated content-script bridge.
+## Why X needs special handling
+
+X commonly feeds `<video>` from `blob:` URLs. The downloadable MP4 variants exist in X's own JSON responses, not necessarily in the final DOM.
+
+MediaForge uses two worlds:
+
+```mermaid
+sequenceDiagram
+    participant X as X page
+    participant M as MAIN-world interceptor
+    participant C as ISOLATED content script
+    participant B as Background worker
+    participant U as User
+    X->>M: fetch/XHR JSON response
+    M->>M: parse media metadata
+    M->>C: same-origin postMessage
+    C->>C: cache by tweet/media
+    U->>C: click download/GIF
+    C->>B: selected best/original records
+    B->>U: browser download / local converter
+```
 
 ## Video quality
 
-Direct MP4 variants are ranked by **visual area first, bitrate second**, avoiding a high-bitrate but lower-resolution rendition when a better visual rendition exists.
+Direct MP4 variants are ranked by **visual area first, bitrate second**. This avoids choosing a high-bitrate but lower-resolution rendition when X exposes multiple variants.
 
 ## Animated GIFs
 
-X “GIFs” are normally looping MP4 animations. MediaForge offers the best direct MP4 and local conversion to a real GIF.
+X “GIFs” are normally MP4 animations. MediaForge offers both:
+
+- the best direct MP4;
+- local conversion into an actual `.gif`.
 
 ## Photos
 
@@ -16,4 +39,4 @@ X “GIFs” are normally looping MP4 animations. MediaForge offers the best dir
 
 ## Inline controls
 
-MediaForge adds compact best/original download controls to X post action rows and a contextual GIF action for animated media. X SPA updates are handled by dirty/new-article targeting rather than repeated full-page article rescans.
+MediaForge adds a compact best/original download control to X action rows and a contextual GIF button for animated media.

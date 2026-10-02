@@ -1,31 +1,41 @@
 # Media Discovery
 
-MediaForge GX deliberately separates **complete discovery** from **what is shown first**. The scanner keeps every discovered record; the smart classifier decides which records are likely useful enough for the default **Best content** view.
+MediaForge GX deliberately uses multiple independent discovery paths, then de-duplicates by media type + URL while keeping the richest metadata.
 
-## Discovery sources
+## DOM sources
 
-MediaForge combines media from:
+- `<img>` current source
+- natural dimensions
+- `srcset`
+- `<picture><source>`
+- lazy/original attributes such as `data-original`, `data-full-src`, `data-hires`, `data-zoom-image`, `data-src`
+- linked image/video/audio files
+- `<video>` and `<audio>` direct sources
+- video posters
+- SVG `<image>` references
+- inline CSS `url(...)`
 
-- rendered `img` elements and natural dimensions;
-- `srcset` / `picture` candidates;
-- common lazy/original attributes;
-- video/audio elements and nested sources;
-- video posters;
-- direct media links and resource hints;
-- SVG image resources;
-- inline CSS and accessible stylesheet URLs;
-- Open Graph / Twitter media metadata;
-- JSON-LD image/video/audio/music/podcast records;
-- Resource Timing entries;
-- open Shadow DOM roots;
-- accessible iframe contexts;
-- X/Twitter response metadata;
-- provider-aware YouTube, Spotify, SoundCloud, and Bandcamp page semantics.
+## Page metadata
 
-## No-loss rule
+- Open Graph image/video/audio entries
+- Twitter card media entries
 
-Smart filtering never deletes records. Switch to **All** to recover the complete scan immediately.
+## CSS resources
 
-## Performance rule
+Accessible stylesheet rules are inspected for media URLs. The stylesheet result is cached and only invalidated when relevant style/stylesheet nodes are added, avoiding repeated CSSOM walks.
 
-Generic pages have no permanent full-document scan loop. Deep snapshots run on demand at background/cooperative priority, and metadata enrichment starts with likely-content records so useful information appears sooner without skipping the rest.
+## Network/resource discovery
+
+A buffered `PerformanceObserver` receives Resource Timing entries and keeps media-like resources in a cache. This catches extensionless CDN image/video/audio URLs that may be hard to identify from filename alone.
+
+## Shadow DOM
+
+Open shadow roots are discovered cooperatively and cached. DOM mutations invalidate that cache, but discovery is deferred until the next deep snapshot instead of becoming a continuous browsing-time traversal.
+
+## Frames
+
+The MV3 service worker requests a snapshot from all accessible frames with `chrome.scripting.executeScript({allFrames:true})`, then merges and de-duplicates the results.
+
+## X/Twitter
+
+X requires a special path because videos are often rendered through `blob:` URLs. See [X / Twitter](X-Twitter).

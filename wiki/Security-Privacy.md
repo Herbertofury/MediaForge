@@ -2,24 +2,28 @@
 
 MediaForge GX is local-first.
 
-- No analytics SDK.
-- No upload-based media conversion service.
-- GIF conversion is local.
-- ZIP creation is local.
-- Remote JavaScript is not loaded into extension pages.
-- Repository validation rejects `eval` and `new Function`.
+## No analytics / remote conversion
 
-## Permissions
+- No analytics SDK
+- No remote JavaScript
+- No hosted media-conversion backend
+- GIF conversion is local
+- ZIP creation is local
 
-| Permission | Purpose |
+## Permission rationale
+
+| Permission | Why it exists |
 | --- | --- |
-| `downloads` | Save direct media, GIFs, ZIPs, and JSON manifests |
+| `downloads` | Save direct media, ZIPs, GIFs, JSON manifests |
 | `storage` | Preferences and short-lived local jobs |
 | `tabs` | Active-tab communication and local converter/ZIP worker tabs |
 | `sidePanel` | Chromium side-panel integration |
-| `scripting` | User-requested deep snapshots across accessible frames |
-| `<all_urls>` | Generic page media discovery, metadata, thumbnails, and direct media access |
+| `scripting` | Snapshot media across accessible frames |
+| `<all_urls>` | Generic current-page media discovery and user-requested media access |
 
-## Provider boundaries
+## Defensive behaviors
 
-MediaForge surfaces useful semantic information for streaming providers without pretending protected/player streams are ordinary downloadable files. Direct media exposed by normal web pages still uses the generic downloader path.
+- `eval` and `new Function` are forbidden by repository validation.
+- Remote `<script src="https://...">` is forbidden in extension HTML.
+- Download filenames are sanitized for Windows-invalid names and path traversal.
+- X direct video handling accepts trusted direct media hosts instead of arbitrary script URLs.

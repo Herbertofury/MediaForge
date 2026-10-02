@@ -1,31 +1,63 @@
 # Bulk Downloader
 
-The **Media on this page** panel is a high-density media library rather than a one-shot popup.
+The **Media on this page** panel is designed as a high-density media library rather than a one-shot downloader popup.
 
-## Quick views
+## Search
 
-**Best content** is the default. Switch instantly among **All**, **Photos**, **Video**, **Audio**, **Ads/promos**, and **UI/tiny**. Smart filtering never deletes records.
+Search matches filename, URL, title/alt text, host, type, extension, MIME, and discovery source. Multiple words are ANDed.
 
-## Search and sort
+Regex is supported:
 
-Search matches filename, URL, title/alt text, host, provider, classification, type, extension, MIME, discovery source, and classifier reasons. Regex such as `/character.*\.png/i` is supported.
+```text
+/character.*\.png/i
+```
 
-Sort by page position, content score, real file size, megapixels, width, height, type, filename, or URL.
+## Sorting
+
+- Page position
+- File size: largest / smallest
+- Megapixels
+- Width
+- Height
+- Type
+- Filename
+- URL
+
+Unknown values are kept visible and sorted after known values instead of being silently dropped.
 
 ## Filters
 
-Use type, file-size presets/custom min/max MB, dimensions, megapixels, orientation, same-host, and unknown-metadata controls. Unknown values remain visible unless you explicitly filter them.
+- Images / GIFs / video / audio / SVG
+- File-size presets and custom min/max MB
+- Minimum/maximum width and height
+- 512 / 1024 / 2048+ dimension presets
+- 4 MP+
+- Portrait / landscape / square-ish
+- Same-host only
+- Hide unknown metadata
 
-## Selection and bulk actions
+## Selection
 
-Selection is logical rather than tied to materialized cards, so virtualization does not reduce coverage.
+Selection is logical, not tied to currently materialized cards. That matters for virtualization: you can select all 2,000 matching records even though only the first viewport-sized batch exists in the DOM.
+
+Actions include:
 
 - Download selected
 - ZIP selected
 - Copy selected URLs
-- Export JSON metadata
+- Export JSON manifest
 - Select visible
 - Invert visible
 - Clear selection
 
-Per-item actions include Download, Save As, View, Copy URL, Open source, real-GIF conversion where compatible, and Google Lens for HTTP(S) images.
+## Per-item actions
+
+Every relevant record can expose:
+
+- Download
+- Save As
+- View
+- Copy URL
+- Open source
+- Save as real GIF for compatible MP4 animation/video
+- Google Lens for HTTP(S) images

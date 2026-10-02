@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MediaForge GX · ZIP</title>
+  <style>
+    :root{color-scheme:dark;font-family:Inter,system-ui,sans-serif}body{margin:0;min-height:100vh;display:grid;place-items:center;color:#edf0f7;background:radial-gradient(circle at 15% 10%,rgba(255,43,214,.13),transparent 34%),radial-gradient(circle at 90% 20%,rgba(37,233,255,.12),transparent 36%),#08090e}.card{width:min(520px,calc(100vw - 40px));padding:26px;border:1px solid rgba(255,255,255,.1);border-radius:20px;background:rgba(18,20,29,.94);box-shadow:0 24px 70px rgba(0,0,0,.45)}.ey{color:#7f879a;font-size:10px;font-weight:900;letter-spacing:.16em}.title{margin:7px 0 19px;font-size:22px}.bar{height:8px;overflow:hidden;border-radius:99px;background:#242733}.bar div{height:100%;width:0;background:linear-gradient(90deg,#ff2bd6,#8d4dff,#25e9ff);transition:.15s}.row{display:flex;justify-content:space-between;margin-top:10px;color:#9299aa;font-size:12px}.detail{margin-top:14px;color:#737b8d;font-size:11px;line-height:1.5}.error{color:#ff9ab3}</style>
+</head>
+<body>
+  <section class="card"><div class="ey">LOCAL ARCHIVE BUILDER</div><h1 id="status" class="title">Preparing selected media…</h1><div class="bar"><div id="fill"></div></div><div class="row"><span id="detail">Reading job</span><strong id="step">0%</strong></div></section>
+  <script src="src/zip-core.js"></script>
+  <script src="zipper.js"></script>
+</body>
+</html>

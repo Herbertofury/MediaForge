@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MediaForge GX</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div class="brandmark" aria-hidden="true">M</div>
+      <div class="brandcopy">
+        <div class="eyebrow">OPERA GX MEDIA TOOLKIT</div>
+        <h1>MediaForge <span>GX</span></h1>
+      </div>
+      <button id="refresh" class="iconbtn" title="Deep rescan page" aria-label="Deep rescan page">
+        <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+      </button>
+    </header>
+
+    <section class="page-card">
+      <div class="page-dot"></div>
+      <div class="page-copy">
+        <div id="pageTitle" class="page-title">Waiting for a page…</div>
+        <div id="pageMeta" class="page-meta">Open a web page with media</div>
+      </div>
+      <div id="mediaCount" class="count">0</div>
+    </section>
+
+    <section class="control-deck" aria-label="Media search and filters">
+      <div class="search-row">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+        <input id="searchInput" type="search" autocomplete="off" spellcheck="false" placeholder="Search file, URL, type, source, title…">
+        <button id="clearSearch" class="micro-btn" title="Clear search" aria-label="Clear search">×</button>
+      </div>
+
+      <div class="quick-filters" id="quickFilters" aria-label="Quick media filters">
+        <button type="button" class="quick-chip active" data-quick="smart"><span>✦</span> Best content <b id="quickSmartCount">0</b></button>
+        <button type="button" class="quick-chip" data-quick="all">All <b id="quickAllCount">0</b></button>
+        <button type="button" class="quick-chip" data-quick="photos">Photos</button>
+        <button type="button" class="quick-chip" data-quick="video">Video</button>
+        <button type="button" class="quick-chip" data-quick="audio">Audio</button>
+        <button type="button" class="quick-chip warning" data-quick="promo">Ads / promos</button>
+        <button type="button" class="quick-chip muted" data-quick="ui">UI / tiny</button>
+      </div>
+      <div class="smart-note" id="smartNote">Best content hides likely ads, trackers, icons, emoji, avatars, loading assets, and stream fragments without deleting anything. “All” always shows the full scan.</div>
+
+      <div class="filter-grid">
+        <label class="compact-field"><span>Type</span><select id="typeFilter">
+          <option value="all">All media</option>
+          <option value="images">Images</option>
+          <option value="photo">Photos</option>
+          <option value="gif">GIF / animation</option>
+          <option value="video">Video</option>
+          <option value="audio">Audio</option>
+          <option value="svg">SVG</option>
+        </select></label>
+        <label class="compact-field"><span>File size</span><select id="sizeFilter">
+          <option value="all">Any size</option>
+          <option value="tiny">Under 100 KB</option>
+          <option value="small">100 KB – 1 MB</option>
+          <option value="medium">1 – 5 MB</option>
+          <option value="large">5 – 20 MB</option>
+          <option value="huge">20 MB+</option>
+          <option value="unknown">Unknown size</option>
+        </select></label>
+        <label class="compact-field"><span>Dimensions</span><select id="dimensionFilter">
+          <option value="all">Any dimensions</option>
+          <option value="512">≥ 512 px side</option>
+          <option value="1024">≥ 1024 px side</option>
+          <option value="2048">≥ 2048 px side</option>
+          <option value="4mp">≥ 4 megapixels</option>
+          <option value="portrait">Portrait</option>
+          <option value="landscape">Landscape</option>
+          <option value="square">Square-ish</option>
+          <option value="unknown">Unknown</option>
+        </select></label>
+        <label class="compact-field"><span>Sort</span><select id="sortSelect">
+          <option value="position">Page position</option>
+          <option value="content-desc">Content score · best first</option>
+          <option value="size-desc">File size · largest</option>
+          <option value="size-asc">File size · smallest</option>
+          <option value="pixels-desc">Resolution · largest</option>
+          <option value="width-desc">Width · largest</option>
+          <option value="height-desc">Height · largest</option>
+          <option value="type">Type</option>
+          <option value="name">Filename</option>
+          <option value="url">URL</option>
+        </select></label>
+      </div>
+
+      <details class="advanced-filters">
+        <summary><span>Advanced filters</span><span class="chev">⌄</span></summary>
+        <div class="advanced-grid">
+          <label class="compact-field"><span>Min width</span><input id="minWidth" type="number" min="0" step="1" placeholder="0"></label>
+          <label class="compact-field"><span>Max width</span><input id="maxWidth" type="number" min="0" step="1" placeholder="∞"></label>
+          <label class="compact-field"><span>Min height</span><input id="minHeight" type="number" min="0" step="1" placeholder="0"></label>
+          <label class="compact-field"><span>Max height</span><input id="maxHeight" type="number" min="0" step="1" placeholder="∞"></label>
+          <label class="compact-field"><span>Min MB</span><input id="minMB" type="number" min="0" step="0.1" placeholder="0"></label>
+          <label class="compact-field"><span>Max MB</span><input id="maxMB" type="number" min="0" step="0.1" placeholder="∞"></label>
+        </div>
+        <div class="advanced-row">
+          <label class="mini-check"><input id="sameHostOnly" type="checkbox"><span>Same host only</span></label>
+          <label class="mini-check"><input id="hideUnknown" type="checkbox"><span>Hide unknown metadata</span></label>
+        </div>
+      </details>
+    </section>
+
+    <section class="selection-strip">
+      <label class="master-check"><input id="masterSelect" type="checkbox"><span></span></label>
+      <button id="selectVisible" class="text-btn">Select visible</button>
+      <button id="invertVisible" class="text-btn">Invert</button>
+      <button id="clearSelection" class="text-btn">Clear</button>
+      <div id="selectionStats" class="selection-stats">0 selected</div>
+    </section>
+
+    <section class="bulk-actions">
+      <button id="downloadSelected" class="primary" disabled>
+        <svg viewBox="0 0 24 24"><path d="M12 3v11m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg>
+        <span>Download selected</span>
+      </button>
+      <button id="zipSelected" class="secondary" disabled title="Fetch selected media locally and package it into one ZIP">
+        <svg viewBox="0 0 24 24"><path d="M8 3h8v4h-3v3h3v4h-3v3h3v4H8z"/><path d="M11 3v4h3"/></svg>
+        ZIP
+      </button>
+      <button id="copySelected" class="secondary" disabled title="Copy selected original URLs">
+        <svg viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M5 16H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        URLs
+      </button>
+      <button id="exportManifest" class="secondary" disabled title="Export selected media metadata as JSON">
+        <svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v5h5M9.5 13h5M9.5 16h5"/></svg>
+        JSON
+      </button>
+    </section>
+
+    <section class="progress-card" id="metadataProgress" hidden>
+      <div class="progress-copy"><span id="metadataLabel">Reading file sizes…</span><span id="metadataNumbers">0 / 0</span></div>
+      <div class="progress-track"><div id="metadataFill"></div></div>
+    </section>
+
+    <section class="section-head sticky-head">
+      <div>
+        <div class="eyebrow">DETECTED</div>
+        <h2>Media on this page</h2>
+      </div>
+      <div class="head-actions">
+        <button id="layoutToggle" class="micro-btn layout-btn" title="Toggle compact layout">▦</button>
+        <div id="statusPill" class="pill">READY</div>
+      </div>
+    </section>
+
+    <section id="mediaList" class="media-list" aria-live="polite"></section>
+    <section id="emptyState" class="empty">
+      <div class="empty-orbit"><div></div></div>
+      <h3>No matching media</h3>
+      <p>Clear the filters or rescan. Deep scan includes images, srcset, lazy-load attributes, CSS backgrounds, linked media, page metadata, network-loaded media, open shadow roots, and accessible frames.</p>
+    </section>
+
+    <details class="settings-card">
+      <summary>
+        <span><span class="eyebrow">BEHAVIOR</span><strong>Preferences</strong></span>
+        <span class="chev">⌄</span>
+      </summary>
+      <div class="settings-body">
+        <label class="toggle-row"><span><b>Hover tools</b><small>Picviewer-style quick controls on media</small></span><input id="hoverTools" type="checkbox"><i></i></label>
+        <label class="toggle-row"><span><b>X action buttons</b><small>Download directly from each post</small></span><input id="xButtons" type="checkbox"><i></i></label>
+        <label class="toggle-row"><span><b>Picviewer CE+ bridge</b><small>Add GX download/GIF controls to Picviewer’s float bar</small></span><input id="integratePicviewer" type="checkbox"><i></i></label>
+        <label class="toggle-row"><span><b>Prefer Picviewer bar</b><small>Avoid duplicate hover bars when Picviewer is active</small></span><input id="preferPicviewerBar" type="checkbox"><i></i></label>
+        <label class="toggle-row"><span><b>Auto-read file sizes</b><small>Probe headers in the background for accurate size sorting</small></span><input id="autoProbeSizes" type="checkbox"><i></i></label>
+        <label class="toggle-row"><span><b>Always “Save as…”</b><small>Ask for a filename instead of silent download</small></span><input id="saveAs" type="checkbox"><i></i></label>
+
+        <label class="field"><span>Download folder</span><input id="folder" type="text" maxlength="120" placeholder="MediaForge GX"></label>
+        <div class="grid2">
+          <label class="field"><span>GIF frame rate</span><select id="gifFps"><option>10</option><option>15</option><option selected>20</option><option>24</option><option>30</option></select></label>
+          <label class="field"><span>GIF width</span><select id="gifMaxWidth"><option value="0">Original</option><option value="1920">1920 px</option><option value="1280">1280 px</option><option value="960">960 px</option><option value="640">640 px</option></select></label>
+          <label class="field"><span>GIF quality</span><select id="gifQuality"><option value="maximum" selected>Maximum · 256 color + stable dither</option><option value="clean">Clean · 256 color, no dither</option><option value="fast">Fast · 192 color</option></select></label>
+        </div>
+        <p class="hint">File-size probing uses HEAD first and a one-byte range fallback, then caches the result briefly. GIF exports and ZIP packaging stay local to the extension.</p>
+      </div>
+    </details>
+
+    <footer><div class="privacy-dot"></div><span>Local-first · no analytics · no upload service</span></footer>
+  </main>
+  <script src="src/media-classifier.js"></script>
+  <script src="sidepanel.js"></script>
+</body>
+</html>

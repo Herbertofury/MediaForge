@@ -1,12 +1,12 @@
 # Picviewer CE+ Integration
 
-MediaForge GX is designed to coexist with Picviewer CE+ instead of replacing its mature image-hover workflow.
+MediaForge GX is designed to coexist with Picviewer CE+ instead of replacing its strong image-viewing workflow.
 
-When MediaForge detects Picviewer's `#pv-float-bar-container`, it leaves Picviewer's own controls intact and adds only the missing MediaForge actions:
+When `#pv-float-bar-container` is present and the bridge is enabled, MediaForge adds only the missing actions:
 
-- **GX↓** for MediaForge-aware best/original download;
-- contextual **GIF** export for compatible video/animation media.
+- `GX↓` — MediaForge best/original download path
+- `GIF` — real GIF conversion when the current record is a compatible MP4 animation/video
 
-If Picviewer is not present, MediaForge supplies its own compact hover toolbar and fullscreen viewer with gallery navigation, wheel zoom, fit/1:1, rotate, flip, video controls, download, URL copy, and GIF export.
+Picviewer's own zoom, rotate, gallery, magnifier, batch-save, and viewing behavior is left intact.
 
-The integration is intentionally additive: Picviewer remains independently updateable and MediaForge does not bundle or overwrite the userscript.
+If Picviewer is not present, MediaForge supplies its own hover bar and fullscreen viewer with zoom, fit/1:1, rotate, flip, gallery navigation, download, URL copy, and GIF conversion.

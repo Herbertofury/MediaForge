@@ -2,23 +2,34 @@
 
 ## Opera GX
 
-1. Download the Opera GX package for the current release.
+1. Download the current **OperaGX** build from the repository release/artifact.
 2. Extract it to a permanent folder.
 3. Open `opera://extensions`.
 4. Enable **Developer mode**.
 5. Choose **Load unpacked**.
 6. Select the extracted folder containing `manifest.json`.
-7. Reload tabs that were already open before the extension was loaded.
-8. Pin **MediaForge GX** to the Opera sidebar/extension UI if desired.
+7. Reload pages that were already open before installation.
+8. Pin MediaForge GX to the Opera sidebar/extensions area if desired.
 
-## Chromium browsers
+MediaForge ships an Opera `sidebar_action` panel and the normal Chromium extension surface, so the same codebase can use Opera's persistent sidebar while remaining compatible with Chromium browsers.
 
-Use the Chromium package for Chrome, Edge, Brave, and other Chromium-based browsers. Extract it, open the browser's extensions page, enable Developer mode, and choose **Load unpacked**.
+## Chrome / Edge / Brave / other Chromium browsers
+
+Use the **Chromium** build, extract it, then load it unpacked from the browser's extensions page.
 
 ## Updating
 
-Extract the new version over a clean folder or replace the old unpacked folder, then press **Reload** on the extension card. Existing browser-stored MediaForge preferences are preserved unless the browser profile itself is cleared.
+Replace the extracted files with the newer build, then press **Reload** on the extension card. Reload existing web pages after an update so their content scripts use the new version.
 
-## First test
+## Permissions
 
-Open a media-heavy page, open the MediaForge side panel, and use **Best content** for the curated view or **All** for the complete lossless discovery set.
+MediaForge GX currently uses:
+
+- `downloads`
+- `storage`
+- `tabs`
+- `sidePanel`
+- `scripting`
+- `<all_urls>` host access
+
+See [Security & Privacy](Security-Privacy) for why each permission exists.
