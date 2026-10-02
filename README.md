@@ -2,11 +2,12 @@
 
 A local-first Opera GX / Chromium media toolkit for **deep current-page media discovery**, **high-speed bulk selection/filtering**, **best-quality X.com downloads**, **real GIF export**, **ZIP packaging**, and **Picviewer CE+ integration**.
 
-## 0.3 highlights — the zero-lag architecture pass
+## 0.4.0 highlights — smart content + long-GIF reliability
 
-MediaForge GX 0.3 keeps the 0.2 bulk-media feature set intact and moves its heavy paths onto cooperative, incremental, cached, and virtualized execution:
 
-- cooperative deep snapshots with `scheduler.yield()` when available and safe fallbacks elsewhere;
+MediaForge GX 0.4 keeps the complete 0.3.1 discovery/downloader feature set and adds local content intelligence, first-class audio/provider awareness, and a rebuilt long-video GIF path while preserving the no-lag architecture:
+
+- on-demand cooperative deep snapshots with `scheduler.yield()` when available and safe fallbacks elsewhere;
 - dirty-article X updates instead of full-article rescans on every mutation;
 - one union-selector DOM collection pass per root for the core media sources;
 - cooperative, cached open-Shadow-DOM discovery;
@@ -14,7 +15,11 @@ MediaForge GX 0.3 keeps the 0.2 bulk-media feature set intact and moves its heav
 - 72-card side-panel virtualization plus near-viewport thumbnail activation;
 - animation-frame-coalesced UI rerenders and debounced search;
 - metadata request single-flight + TTL caching;
-- a checked-in workload performance contract (`npm run perf:model`).
+- a checked-in workload performance contract (`npm run perf:model`);
+- pre-indexed search/sort fields and one filter-state snapshot per render (`npm run perf:ui`).
+- **Best content** quick filtering that hides probable ads/promos, trackers, icons, emoji, avatars, loading art, and stream fragments without deleting them; **All** always restores the complete scan.
+- YouTube / Spotify / SoundCloud / Bandcamp provider-aware semantic records, plus direct MP3/M4A/AAC/OGG/Opus/WAV/FLAC discovery.
+- long-video GIF capture synchronized with decoded compositor frames, exact cumulative centisecond timing, 256-color local palettes, ordered dithering, duplicate-frame folding, and chunked output storage.
 
 The full documentation lives in the [GitHub Wiki](https://github.com/Herbertofury/MediaForge/wiki), with a source mirror under `wiki/`.
 
@@ -55,7 +60,7 @@ Detected sources include:
 - cross-origin iframes through MV3 `scripting` execution in every accessible frame;
 - X/Twitter media records captured from the page's own API responses.
 
-The scan uses a low-priority cooperative warmup plus user-requested snapshots; it does not turn generic browsing into a permanent full-document mutation-rescan loop.
+Generic pages do **no eager deep scan and run no full-page MutationObserver**. Deep discovery starts when the side panel requests a snapshot; X retains only its targeted dirty-article observer for inline controls.
 
 ## X / Twitter quality path
 
@@ -117,11 +122,11 @@ There is no analytics SDK and no remote JavaScript.
 
 ## Performance design
 
-0.3 preserves complete discovery while cutting work on the browser-critical paths. Deep snapshots are cooperative and async; Chromium waits for the returned Promise when `chrome.scripting.executeScript()` runs the snapshot. X mutations target only dirty/new articles. Open Shadow DOM discovery is cooperative, cached, and deferred until a deep snapshot needs it. Resource Timing is accumulated through `PerformanceObserver` instead of re-enumerated on every scan, and stylesheet media is cached until style nodes change.
+0.4 preserves complete discovery while cutting work on the browser-critical paths. Deep snapshots are cooperative and async; Chromium waits for the returned Promise when `chrome.scripting.executeScript()` runs the snapshot. X mutations target only dirty/new articles. Open Shadow DOM discovery is cooperative, cached, and deferred until a deep snapshot needs it. Resource Timing is accumulated through `PerformanceObserver` instead of re-enumerated on every scan, and stylesheet media is cached until style nodes change.
 
 The side panel keeps the complete logical result set but materializes cards in 72-item viewport batches. Thumbnail requests are activated only near the viewport. Cards combine `content-visibility:auto`, CSS containment, and intrinsic-size hints. Search/filter rerenders are coalesced, and metadata requests are TTL cached and single-flight protected.
 
-`npm run perf:model` records deterministic workload reductions for the touched hot paths; see `docs/PERFORMANCE.md` or the wiki for details.
+`npm run perf:model` records deterministic structural workload reductions, while `npm run perf:ui` parity-checks a 20,000-record search/filter/sort workload. On the current release environment the optimized UI path measured 16.14x faster (948.642 ms → 58.769 ms median, 93.80% less CPU) with identical result count/checksum. See `docs/PERFORMANCE.md` or the wiki for details.
 
 ## Development / QA
 
@@ -147,7 +152,9 @@ src/
   content.css         injected page UI
   x-interceptor.js    MAIN-world X response observer
   x-media.js          X parser and best-rendition selection
-  quantize.mjs        local GIF palette quantizer
+  quantize.mjs        local GIF palette quantizer + stable ordered dithering
+  gif-utils.mjs       exact GIF timing / quality helpers
+  media-classifier.js smart content-vs-junk scoring
   zip-core.js         local ZIP32 writer + CRC32
 sidepanel.html/.css/.js
 converter.html/.js    local MP4 -> GIF worker
@@ -178,7 +185,7 @@ See `THIRD_PARTY_NOTICES.md` for licensing notes.
 - Browser-internal pages such as `chrome://` / `opera://` do not allow normal extension page injection.
 - X can change its GraphQL/media shapes or DOM. Parser and UI failures are isolated so they do not break the site.
 - Generic adaptive-streaming `blob:` video cannot always be reconstructed into a single source file. X is handled separately through its response metadata.
-- Local GIF conversion is compute-heavy for long 4K sources. It refuses jobs above 5,000 frames instead of silently truncating them.
+- Local GIF conversion is compute-heavy for long 4K sources. 0.4 removes the old 5,000-frame cap, folds exact duplicate frames, uses chunked output, and fails explicitly before the browser-safe 3.75 GiB output boundary rather than knowingly saving a partial/corrupt GIF.
 
 ## License
 
