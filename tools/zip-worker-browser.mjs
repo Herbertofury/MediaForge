@@ -39,15 +39,14 @@ try{
  await successPage.waitForFunction(()=>document.querySelector('#status').textContent.includes('ZIP saved'));
  const receipt=await receiptFor('complete');
  assert.equal(receipt.ok,true);assert.equal(receipt.count,2);assert.equal(receipt.failed,0);
- let download;
- for(let i=0;i<100;i++){[download]=await worker.evaluate(id=>chrome.downloads.search({id}),receipt.downloadId);if(download?.state==='complete')break;await new Promise(r=>setTimeout(r,100));}
+ const [download]=await worker.evaluate(id=>chrome.downloads.search({id}),receipt.downloadId);
  assert.equal(download?.state,'complete');const bytes=await fs.readFile(download.filename);
  const entries={};let offset=0;
  while(bytes.readUInt32LE(offset)===0x04034b50){const size=bytes.readUInt32LE(offset+18),nameLength=bytes.readUInt16LE(offset+26),extraLength=bytes.readUInt16LE(offset+28),name=bytes.subarray(offset+30,offset+30+nameLength).toString(),start=offset+30+nameLength+extraLength,data=bytes.subarray(start,start+size);assert.equal(Z.crc32(data),bytes.readUInt32LE(offset+14));entries[name]=data.toString();offset=start+size;}
  assert.deepEqual(entries,{[longName]:bodies['/one'].toString(),[secondName]:bodies['/two'].toString()});
  assert.equal(bytes.readUInt16LE(bytes.length-12),2);await fs.writeFile(path.join(out,'verified-complete.zip'),bytes);
  await successPage.screenshot({path:path.join(out,'complete.png')});
- evidence.checks.restoredAccessDownloadsCompleteSelection=true;evidence.checks.originalBytesAndCRCsMatch=true;evidence.checks.longDuplicateNamesRetainSelectionOrder=true;
+ evidence.checks.restoredAccessDownloadsCompleteSelection=true;evidence.checks.originalBytesAndCRCsMatch=true;evidence.checks.successReceiptRequiresCompletedDownload=true;evidence.checks.longDuplicateNamesRetainSelectionOrder=true;
  evidence.archiveSha256=crypto.createHash('sha256').update(bytes).digest('hex');assert.deepEqual(evidence.errors,[]);
 }catch(error){evidence.failure=String(error.stack||error);throw error;}
 finally{await fs.writeFile(path.join(out,'evidence.json'),JSON.stringify(evidence,null,2));await context?.close();await new Promise(resolve=>server.close(resolve));}
