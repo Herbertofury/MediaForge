@@ -16,7 +16,7 @@ await fs.copyFile(path.join(root,'manifest.chromium.json'),path.join(extension,'
 const sourceIdentity={};
 for(const p of ['zipper.js','src/zip-core.js','manifest.chromium.json'])sourceIdentity[p]=crypto.createHash('sha256').update(await fs.readFile(path.join(root,p))).digest('hex');
 let unavailable=true;const bodies={'/one':Buffer.from('complete original one'),'\/two':Buffer.from('complete original two')};
-const server=http.createServer((req,res)=>{if(req.url==='/two'&&unavailable){res.writeHead(403);res.end('fixture access expired');return;}const body=bodies[req.url];if(!body){res.writeHead(404);res.end();return;}res.writeHead(200,{'Content-Type':'application/octet-stream'});res.end(body);});
+const server=http.createServer((req,res)=>{if(req.url==='/two'&&unavailable){res.writeHead(403);res.end('fixture access expired');return;}const body=bodies[req.url];if(!body){res.writeHead(404);res.end();return;}const send=()=>{res.writeHead(200,{'Content-Type':'application/octet-stream'});res.end(body);};if(req.url==='/one')setTimeout(send,100);else send();});
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const origin=`http://127.0.0.1:${server.address().port}`;
 let context;const evidence={sourceIdentity,checks:{},errors:[]};
@@ -26,7 +26,8 @@ try{
  const id=new URL(worker.url()).host;evidence.extensionId=id;evidence.loadedExtensionPath=extension;
  await worker.evaluate(()=>{globalThis.zipReceipts=[];chrome.runtime.onMessage.addListener(message=>{if(message.type==='mfgx:zipDone')globalThis.zipReceipts.push(message);});});
  async function receiptFor(jobId){for(let i=0;i<100;i++){const result=await worker.evaluate(id=>globalThis.zipReceipts.find(m=>m.jobId===id),jobId);if(result)return result;await new Promise(r=>setTimeout(r,50));}throw new Error(`ZIP receipt missing: ${jobId}`);}
- const records=[{url:origin+'/one',filename:'one.txt'},{url:origin+'/two',filename:'two.txt'}];
+ const longName='a'.repeat(236)+'.txt',secondName='a'.repeat(232)+' (2).txt';
+ const records=[{url:origin+'/one',filename:longName},{url:origin+'/two',filename:longName}];
  async function openJob(jobId){await worker.evaluate(async({jobId,records})=>chrome.storage.session.set({[`zipJob:${jobId}`]:{id:jobId,records,filename:`${jobId}.zip`,saveAs:false}}),{jobId,records});const page=await context.newPage();page.on('pageerror',e=>evidence.errors.push(String(e)));await page.goto(`chrome-extension://${id}/zipper.html#${jobId}`);return page;}
  const failedPage=await openJob('incomplete');
  await failedPage.waitForFunction(()=>document.querySelector('#status').textContent.includes('No archive was downloaded'));
@@ -43,10 +44,10 @@ try{
  assert.equal(download?.state,'complete');const bytes=await fs.readFile(download.filename);
  const entries={};let offset=0;
  while(bytes.readUInt32LE(offset)===0x04034b50){const size=bytes.readUInt32LE(offset+18),nameLength=bytes.readUInt16LE(offset+26),extraLength=bytes.readUInt16LE(offset+28),name=bytes.subarray(offset+30,offset+30+nameLength).toString(),start=offset+30+nameLength+extraLength,data=bytes.subarray(start,start+size);assert.equal(Z.crc32(data),bytes.readUInt32LE(offset+14));entries[name]=data.toString();offset=start+size;}
- assert.deepEqual(entries,{'one.txt':bodies['/one'].toString(),'two.txt':bodies['/two'].toString()});
+ assert.deepEqual(entries,{[longName]:bodies['/one'].toString(),[secondName]:bodies['/two'].toString()});
  assert.equal(bytes.readUInt16LE(bytes.length-12),2);await fs.writeFile(path.join(out,'verified-complete.zip'),bytes);
  await successPage.screenshot({path:path.join(out,'complete.png')});
- evidence.checks.restoredAccessDownloadsCompleteSelection=true;evidence.checks.originalBytesAndCRCsMatch=true;
+ evidence.checks.restoredAccessDownloadsCompleteSelection=true;evidence.checks.originalBytesAndCRCsMatch=true;evidence.checks.longDuplicateNamesRetainSelectionOrder=true;
  evidence.archiveSha256=crypto.createHash('sha256').update(bytes).digest('hex');assert.deepEqual(evidence.errors,[]);
 }catch(error){evidence.failure=String(error.stack||error);throw error;}
 finally{await fs.writeFile(path.join(out,'evidence.json'),JSON.stringify(evidence,null,2));await context?.close();await new Promise(resolve=>server.close(resolve));}

@@ -39,3 +39,23 @@ test('complete ZIP export retains every selected byte and reports success',async
  const zip=new DataView(await result.blobs[0].arrayBuffer());assert.equal(zip.getUint16(zip.byteLength-12,true),2);
  const done=result.messages.find(m=>m.type==='mfgx:zipDone');assert.equal(done.ok,true);assert.equal(done.count,2);assert.equal(done.failed,0);
 });
+
+function archiveEntries(bytes) {
+ const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength),entries=[];let at=0;
+ while(view.getUint32(at,true)===0x04034b50){const size=view.getUint32(at+18,true),n=view.getUint16(at+26,true),x=view.getUint16(at+28,true),start=at+30+n+x;entries.push({name:new TextDecoder().decode(bytes.subarray(at+30,at+30+n)),data:[...bytes.subarray(start,start+size)]});at=start+size;}
+ return entries;
+}
+test('long duplicate names remain unique in the emitted ZIP and follow selection order',async()=>{
+ const name='a'.repeat(236)+'.txt';
+ const selected=records.map(r=>({...r,filename:name}));
+ const result=await runWorker(selected,async url=>{if(url.endsWith('/one'))await new Promise(r=>setTimeout(r,25));return {ok:true,arrayBuffer:async()=>Uint8Array.of(url.endsWith('/one')?1:2).buffer};});
+ const entries=archiveEntries(new Uint8Array(await result.blobs[0].arrayBuffer()));
+ assert.equal(new Set(entries.map(e=>e.name)).size,2);
+ assert.equal(entries[0].name,name);assert.ok(entries[1].name.endsWith(' (2).txt'));
+ assert.ok(entries.every(e=>e.name.length<=240));assert.deepEqual(entries.map(e=>e.data),[[1],[2]]);
+});
+test('duplicate allocation avoids existing suffixes and respects dotted folder names',async()=>{
+ const selected=['folder.v1/file','folder.v1/file (2)','folder.v1/file'].map((filename,i)=>({filename,url:`https://fixture.test/${i}`}));
+ const result=await runWorker(selected,async()=>({ok:true,arrayBuffer:async()=>Uint8Array.of(9).buffer}));
+ assert.deepEqual(archiveEntries(new Uint8Array(await result.blobs[0].arrayBuffer())).map(e=>e.name),['folder.v1/file','folder.v1/file (2)','folder.v1/file (3)']);
+});

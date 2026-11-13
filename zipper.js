@@ -10,7 +10,20 @@ function setProgress(p,msg){p=Math.max(0,Math.min(100,Number(p)||0));fill.style.
 function closeSelf(){chrome.tabs.getCurrent((tab)=>{if(tab?.id)chrome.tabs.remove(tab.id).catch(()=>{});});}
 function fail(error){const msg=String(error?.message||error||'ZIP failed');statusEl.textContent=msg;statusEl.classList.add('error');detail.textContent='Archive stopped';chrome.runtime.sendMessage({type:'mfgx:zipDone',jobId,ok:false,error:msg});chrome.runtime.sendMessage({type:'mfgx:zipComplete',jobId});setTimeout(closeSelf,5500);}
 async function loadJob(){const key=`zipJob:${jobId}`;let area=chrome.storage.session||chrome.storage.local;let data=await area.get(key);if(!data[key]&&area!==chrome.storage.local){area=chrome.storage.local;data=await area.get(key);}return data[key];}
-function uniqueName(name,seen){const clean=MediaForgeZipCore.sanitizePath(name,'media.bin');if(!seen.has(clean)){seen.add(clean);return clean;}const dot=clean.lastIndexOf('.');const stem=dot>0?clean.slice(0,dot):clean;const ext=dot>0?clean.slice(dot):'';let i=2,candidate;do{candidate=`${stem} (${i++})${ext}`;}while(seen.has(candidate));seen.add(candidate);return candidate;}
+function uniqueName(name,seen){
+  const clean=MediaForgeZipCore.sanitizePath(name,'media.bin');
+  if(!seen.has(clean)){seen.add(clean);return clean;}
+  const dot=clean.lastIndexOf('.'),slash=clean.lastIndexOf('/');
+  const hasExtension=dot>slash+1&&clean.length-dot<=32;
+  const stem=hasExtension?clean.slice(0,dot):clean,ext=hasExtension?clean.slice(dot):'';
+  let i=2,candidate;
+  do{
+    const suffix=` (${i++})`;
+    // Reserve suffix space before the ZIP core applies its 240-character cap.
+    candidate=MediaForgeZipCore.sanitizePath(`${stem.slice(0,240-suffix.length-ext.length)}${suffix}${ext}`);
+  }while(seen.has(candidate));
+  seen.add(candidate);return candidate;
+}
 async function fetchRecord(rec){const response=await fetch(rec.url,{credentials:'include',cache:'no-store',redirect:'follow'});if(!response.ok)throw new Error(`${response.status} ${response.statusText}`);return new Uint8Array(await response.arrayBuffer());}
 
 async function run(){
@@ -18,11 +31,12 @@ async function run(){
   const job=await loadJob();if(!job)throw new Error('ZIP job expired.');
   const records=Array.isArray(job.records)?job.records:[];if(!records.length)throw new Error('ZIP has no media records.');
   statusEl.textContent=`Fetching ${records.length.toLocaleString()} selected file${records.length===1?'':'s'}…`;
-  const files=new Array(records.length);const errors=[];const seen=new Set();let cursor=0,done=0;
+  const files=new Array(records.length);const errors=[];const seen=new Set();
+  const names=records.map((rec,index)=>uniqueName(rec.zipName||rec.filename||`media-${index+1}.bin`,seen));let cursor=0,done=0;
   async function worker(){
     while(cursor<records.length){
       const index=cursor++;const rec=records[index];
-      try{const data=await fetchRecord(rec);files[index]={name:uniqueName(rec.zipName||rec.filename||`media-${index+1}.bin`,seen),data};}
+      try{const data=await fetchRecord(rec);files[index]={name:names[index],data};}
       catch(error){errors.push({url:rec.url,error:String(error?.message||error)});}
       done++;setProgress(5+70*(done/records.length),`Fetched ${done}/${records.length}${errors.length?` · ${errors.length} failed`:''}`);
     }
