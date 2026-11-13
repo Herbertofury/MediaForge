@@ -4,21 +4,22 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const Z = require('../src/zip-core.js');
 
-async function runWorker(records, fetcher) {
-  const messages = [], downloads = [], blobs = [];
+async function runWorker(records, fetcher, downloadState = 'complete') {
+  const messages = [], downloads = [], blobs = [], revoked = [];
+  const listeners = new Set();
   const elements = Object.fromEntries(['status','fill','step','detail'].map(id => [id,{textContent:'',style:{},classList:{add(){}}}]));
   let complete;
   const done = new Promise(resolve => { complete = resolve; });
   const context = {
     document:{getElementById:id=>elements[id]}, location:{hash:'#fixture'},
-    chrome:{storage:{session:{get:async()=>({'zipJob:fixture':{records,filename:'fixture.zip'}})}},runtime:{sendMessage:m=>{messages.push(m);if(m.type==='mfgx:zipComplete')complete();return Promise.resolve();}},downloads:{download:async options=>{downloads.push(options);return 17;}},tabs:{}},
+    chrome:{storage:{session:{get:async()=>({'zipJob:fixture':{records,filename:'fixture.zip'}})}},runtime:{sendMessage:m=>{messages.push(m);if(m.type==='mfgx:zipComplete')complete();return Promise.resolve();}},downloads:{download:async options=>{downloads.push(options);return 17;},onChanged:{addListener:fn=>listeners.add(fn),removeListener:fn=>listeners.delete(fn)},search:async()=>{if(typeof downloadState==='function')return downloadState({messages,listeners,elements,revoked});return [{id:17,state:downloadState,error:downloadState==='interrupted'?'USER_CANCELED':undefined}];}} ,tabs:{}},
     MediaForgeZipCore:Z, Uint8Array, fetch:fetcher,
-    URL:{createObjectURL:blob=>{blobs.push(blob);return 'blob:fixture';}},
+    URL:{createObjectURL:blob=>{blobs.push(blob);return 'blob:fixture';},revokeObjectURL:url=>revoked.push(url)},
     requestAnimationFrame:fn=>fn(),setTimeout:()=>0
   };
   vm.runInNewContext(fs.readFileSync(require.resolve('../zipper.js'),'utf8'),context);
   await done;
-  return {messages,downloads,blobs,elements};
+  return {messages,downloads,blobs,elements,revoked,listeners};
 }
 const records=[{url:'https://fixture.test/one',filename:'one.txt'},{url:'https://fixture.test/two',filename:'two.txt'}];
 for(const failure of ['http','network','body'])test(`ZIP worker refuses partial export after ${failure} failure`,async()=>{
@@ -58,4 +59,40 @@ test('duplicate allocation avoids existing suffixes and respects dotted folder n
  const selected=['folder.v1/file','folder.v1/file (2)','folder.v1/file'].map((filename,i)=>({filename,url:`https://fixture.test/${i}`}));
  const result=await runWorker(selected,async()=>({ok:true,arrayBuffer:async()=>Uint8Array.of(9).buffer}));
  assert.deepEqual(archiveEntries(new Uint8Array(await result.blobs[0].arrayBuffer())).map(e=>e.name),['folder.v1/file','folder.v1/file (2)','folder.v1/file (3)']);
+});
+
+test('interrupted download never reports a saved ZIP and releases its blob',async()=>{
+ const result=await runWorker(records,async()=>({ok:true,arrayBuffer:async()=>Uint8Array.of(1).buffer}), 'interrupted');
+ const done=result.messages.find(m=>m.type==='mfgx:zipDone');
+ assert.equal(done.ok,false);assert.match(done.error,/USER_CANCELED/);
+ assert.doesNotMatch(result.elements.status.textContent,/ZIP saved/);
+ assert.deepEqual(result.revoked,['blob:fixture']);assert.equal(result.listeners.size,0);
+});
+
+for(const state of ['complete','interrupted'])test(`ZIP waits for its own terminal event: ${state}`,async()=>{
+ const result=await runWorker(records,async()=>({ok:true,arrayBuffer:async()=>Uint8Array.of(1).buffer}),({messages,listeners,elements,revoked})=>{
+  assert.equal(messages.some(m=>m.type==='mfgx:zipDone'),false);
+  assert.match(elements.status.textContent,/Saving ZIP/);assert.equal(revoked.length,0);
+  for(const fn of listeners)fn({id:99,state:{current:'complete'}});
+  assert.equal(listeners.size,1);
+  setImmediate(()=>{for(const fn of listeners)fn({id:17,state:{current:state},error:{current:'FILE_FAILED'}});});
+  return [{id:17,state:'in_progress'}];
+ });
+ assert.equal(result.messages.find(m=>m.type==='mfgx:zipDone').ok,state==='complete');
+ assert.equal(result.listeners.size,0);assert.deepEqual(result.revoked,['blob:fixture']);
+});
+test('completion event wins over an older in-progress snapshot',async()=>{
+ const result=await runWorker(records,async()=>({ok:true,arrayBuffer:async()=>Uint8Array.of(1).buffer}),({listeners})=>{
+  for(const fn of listeners)fn({id:17,state:{current:'complete'}});
+  return [{id:17,state:'in_progress'}];
+ });
+ assert.equal(result.messages.filter(m=>m.type==='mfgx:zipDone').length,1);
+ assert.equal(result.messages.find(m=>m.type==='mfgx:zipDone').ok,true);assert.equal(result.listeners.size,0);
+});
+for(const failure of ['missing','query'])test(`unverified download fails explicitly: ${failure}`,async()=>{
+ const result=await runWorker(records,async()=>({ok:true,arrayBuffer:async()=>Uint8Array.of(1).buffer}),()=>{
+  if(failure==='query')throw new Error('download lookup unavailable');return [];
+ });
+ assert.equal(result.messages.find(m=>m.type==='mfgx:zipDone').ok,false);
+ assert.equal(result.listeners.size,0);assert.deepEqual(result.revoked,['blob:fixture']);
 });

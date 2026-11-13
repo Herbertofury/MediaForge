@@ -26,6 +26,29 @@ function uniqueName(name,seen){
 }
 async function fetchRecord(rec){const response=await fetch(rec.url,{credentials:'include',cache:'no-store',redirect:'follow'});if(!response.ok)throw new Error(`${response.status} ${response.statusText}`);return new Uint8Array(await response.arrayBuffer());}
 
+// download() only creates an item; its ID is not proof that bytes reached disk.
+function waitForDownload(downloadId){
+  return new Promise((resolve,reject)=>{
+    let settled=false;
+    function finish(error){
+      if(settled)return;settled=true;
+      chrome.downloads.onChanged.removeListener(onChanged);
+      if(error)reject(error);else resolve();
+    }
+    function check(state,error){
+      if(state==='complete')finish();
+      else if(state==='interrupted')finish(new Error(`ZIP download interrupted: ${error||'unknown reason'}. Retry the export.`));
+    }
+    function onChanged(delta){if(delta.id===downloadId)check(delta.state?.current,delta.error?.current);}
+    // Subscribe before searching so completion during the snapshot cannot be missed.
+    chrome.downloads.onChanged.addListener(onChanged);
+    chrome.downloads.search({id:downloadId}).then(items=>{
+      if(!items.length)finish(new Error('ZIP download is no longer available. Completion could not be verified.'));
+      else check(items[0].state,items[0].error);
+    },finish);
+  });
+}
+
 async function run(){
   if(!jobId)throw new Error('Missing ZIP job.');
   const job=await loadJob();if(!job)throw new Error('ZIP job expired.');
@@ -49,12 +72,17 @@ async function run(){
   await new Promise(requestAnimationFrame);
   const blob=MediaForgeZipCore.buildStoredZip(okFiles);
   const url=URL.createObjectURL(blob);setProgress(96,'Starting ZIP download');
-  const downloadId=await chrome.downloads.download({url,filename:job.filename,saveAs:Boolean(job.saveAs),conflictAction:'uniquify'});
+  let downloadId;
+  try{
+  downloadId=await chrome.downloads.download({url,filename:job.filename,saveAs:Boolean(job.saveAs),conflictAction:'uniquify'});
+  statusEl.textContent='Saving ZIP…';setProgress(97,'Waiting for browser download completion');
+  await waitForDownload(downloadId);
+  }finally{URL.revokeObjectURL(url);}
   setProgress(100,`${(blob.size/1048576).toFixed(blob.size>=10*1048576?1:2)} MB · ${okFiles.length} files${errors.length?` · ${errors.length} skipped`:''}`);
   statusEl.textContent='ZIP saved. Nothing was uploaded.';
   chrome.runtime.sendMessage({type:'mfgx:zipDone',jobId,ok:true,downloadId,size:blob.size,count:okFiles.length,failed:errors.length,errors});
   chrome.runtime.sendMessage({type:'mfgx:zipComplete',jobId});
-  setTimeout(()=>{URL.revokeObjectURL(url);closeSelf();},5000);
+  setTimeout(closeSelf,5000);
 }
 
 run().catch(fail);
