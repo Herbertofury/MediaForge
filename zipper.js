@@ -28,7 +28,9 @@ async function run(){
     }
   }
   await Promise.all(Array.from({length:Math.min(4,records.length)},worker));
-  const okFiles=files.filter(Boolean);if(!okFiles.length)throw new Error(`Every selected file failed to fetch${errors[0]?`: ${errors[0].error}`:''}.`);
+  // Selected files are an export contract: never label a partial archive as success.
+  if(errors.length)throw new Error(`${errors.length} of ${records.length} selected files failed to fetch. No archive was downloaded. Retry the selection after restoring access. First error: ${errors[0].error}`);
+  const okFiles=files;
   statusEl.textContent='Building ZIP locally…';setProgress(82,`${okFiles.length} file${okFiles.length===1?'':'s'} ready`);
   await new Promise(requestAnimationFrame);
   const blob=MediaForgeZipCore.buildStoredZip(okFiles);
