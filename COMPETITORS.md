@@ -41,3 +41,14 @@ Added **2026-11-12**; proposals require target-workload comparison.
 - [ ] Test cross-origin and missing metadata, adapter version skew, malformed media and canceled exports.
 - [ ] Retain current permissions and privacy boundaries; no new grant or remote helper is implied.
 - [ ] Measure end-to-end first-use latency, complete scan time and memory before accepting shared-code overhead.
+
+## Focused refresh: 2026-11-13
+
+Official [yt-dlp 2026.10.26 release notes](https://github.com/yt-dlp/yt-dlp/releases/tag/2026.10.26) were checked. This remains the latest stable release displayed; it predates the November 12 review, so it is **not a newly shipped release since that review**. The following previously unrecorded constraints matter before any external-adapter experiment:
+
+- Source execution now requires Python 3.11 or later, and official Windows binaries require Windows 10 or later.
+- Upstream reports bundled brotli/certifi vulnerability fixes through its updated bundled dependencies. This does not establish that MediaForge is affected; its extension has no npm runtime dependencies and this pass did not install a helper.
+- Release packaging has separate license obligations: the Unix executable/tarball include ISC/MIT code, while bundled executables carry additional licenses in THIRD_PARTY_LICENSES.txt. Do not treat a project-level license as a complete binary redistribution review.
+- Before a helper is admitted, record exact release/checksum, inspect its bundled notices and run only an authorized public-media corpus. Compare format choice, metadata completeness, explicit unsupported states, failure recovery and cold startup against MediaForge's existing route. Keep account sessions/tokens out of shared schemas.
+
+The official [save-images repository](https://github.com/belaviyo/save-images) was also revisited. This pass did not establish a versioned release delta or verify a reusable module's license; the code-reuse gate remains closed pending that audit. No superiority, new dependency, adapter implementation or native acceptance is claimed.
