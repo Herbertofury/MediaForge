@@ -80,7 +80,10 @@ async function run(){
   statusEl.textContent='Fetching the original video locally…';setProgress(1,'Fetching source');
   const response=await fetch(job.sourceUrl,{credentials:'include',cache:'no-store'});if(!response.ok)throw new Error(`Source fetch failed (${response.status})`);
   const blob=await response.blob();if(!blob.size)throw new Error('The source video was empty.');
-  const src=URL.createObjectURL(blob);video.preload='auto';video.muted=true;video.playsInline=true;video.src=src;await once(video,'loadedmetadata');
+  const src=URL.createObjectURL(blob);
+  // Source ownership starts before metadata/decode/encode can fail.
+  try{
+  video.preload='auto';video.muted=true;video.playsInline=true;video.src=src;await once(video,'loadedmetadata');
   if(video.readyState<2){try{await once(video,'loadeddata',15000);}catch(_){}}
   const duration=video.duration;if(!Number.isFinite(duration)||duration<=0)throw new Error('Could not determine video duration.');
   const fps=Math.max(5,Math.min(30,Number(job.fps)||20));const frameCount=Math.max(1,Math.ceil(duration*fps));
@@ -135,11 +138,12 @@ async function run(){
   currentDownloadId=await chrome.downloads.download({url:gifUrl,filename:job.filename,saveAs:Boolean(job.saveAs),conflictAction:'uniquify'});
   statusEl.textContent='Saving GIF…';setProgress(99,'Waiting for browser download completion');
   await waitForDownload(currentDownloadId);
-  }finally{URL.revokeObjectURL(gifUrl);URL.revokeObjectURL(src);}
+  }finally{URL.revokeObjectURL(gifUrl);}
   setProgress(100,`${(gifBlob.size/1048576).toFixed(1)} MB · ${uniqueFrames.toLocaleString()} encoded frames · ${duplicateFrames.toLocaleString()} duplicates folded`);
   statusEl.textContent='GIF saved — frame-synchronized, long-video-safe, maximum palette quality.';
   chrome.runtime.sendMessage({type:'mfgx:gifDone',jobId,ok:true,downloadId:currentDownloadId,size:gifBlob.size,filename:job.filename,uniqueFrames,duplicateFrames,quality:quality.name});
   chrome.runtime.sendMessage({type:'mfgx:gifComplete',jobId});
   setTimeout(closeSelf,5000);
+  }finally{URL.revokeObjectURL(src);}
 }
 run().catch(fail);
