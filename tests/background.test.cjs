@@ -50,3 +50,19 @@ test('data URL metadata matches actual decoded binary, Unicode and parameterized
     assert.equal(metadata.mime, response.headers.get('content-type').split(';')[0]);
   }
 });
+
+test('download names protect Windows device stems even with multiple extensions', () => {
+  for (const stem of ['CON', 'nul', 'COM1', 'LPT³']) {
+    const normalized = stem.normalize('NFKC');
+    assert.equal(B.sanitizeSegment(`${stem}.backup.jpg`), `_${normalized}.backup.jpg`);
+    assert.equal(B.buildFilename({ url: `https://example.test/${stem}.backup.jpg` }, { folder: 'AUX.photos' }), `_AUX.photos/_${normalized}.backup.jpg`);
+  }
+  assert.equal(B.sanitizeSegment('console.jpg'), 'console.jpg');
+  assert.equal(B.sanitizeSegment('COM10.jpg'), 'COM10.jpg');
+});
+
+test('filename limits cannot reintroduce trailing dots or spaces', () => {
+  assert.equal(B.sanitizeSegment('abc.def', 'media', 4), 'abc');
+  assert.equal(B.sanitizeSegment('abc def', 'media', 4), 'abc');
+  assert.equal(B.sanitizeFolder('a'.repeat(59) + '.suffix'), 'a'.repeat(59));
+});

@@ -15,7 +15,7 @@ const DEFAULTS = Object.freeze({
   defaultLayout: 'list'
 });
 
-const WIN_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+const WIN_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i;
 const META_CACHE_TTL = 20 * 60 * 1000;
 const META_CACHE_MAX = 2500;
 const metaCache = new Map();
@@ -34,7 +34,8 @@ function sanitizeSegment(value, fallback = 'media', max = 90) {
     .replace(/\s+/g, ' ')
     .replace(/[. ]+$/g, '')
     .trim()
-    .slice(0, max);
+    .slice(0, max)
+    .replace(/[. ]+$/g, '');
   if (!s) s = fallback;
   if (WIN_RESERVED.test(s)) s = `_${s}`;
   return s;
