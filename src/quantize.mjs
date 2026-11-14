@@ -31,11 +31,15 @@ function channelValue(k,c){return c===0?((k>>10)&31):c===1?((k>>5)&31):(k&31);}
 function makeBox(keys,bins){let r0=31,g0=31,b0=31,r1=0,g1=0,b1=0,count=0;for(const k of keys){const r=(k>>10)&31,g=(k>>5)&31,b=k&31;r0=Math.min(r0,r);g0=Math.min(g0,g);b0=Math.min(b0,b);r1=Math.max(r1,r);g1=Math.max(g1,g);b1=Math.max(b1,b);count+=bins[k];}return{keys,r0,g0,b0,r1,g1,b1,count};}
 function longest(b){const rr=b.r1-b.r0,gg=b.g1-b.g0,bb=b.b1-b.b0;return rr>=gg&&rr>=bb?0:gg>=bb?1:2;}
 
+// Coarse bins bound cache memory, but only an exact RGB hit can reuse an index.
+// Otherwise output depends on which near-color happened to appear first.
 export function applyPalette(rgba,palette){
   const out=new Uint8Array(rgba.length/4),cache=new Int16Array(32768);cache.fill(-1);
+  const cachedColors=new Uint32Array(cache.length);
   for(let p=0,i=0;p<rgba.length;p+=4,i++){
     const r=rgba[p],g=rgba[p+1],b=rgba[p+2],key=((r>>3)<<10)|((g>>3)<<5)|(b>>3);let idx=cache[key];
-    if(idx<0){let best=0,dist=Infinity;for(let j=0;j<palette.length;j++){const c=palette[j],dr=r-c[0],dg=g-c[1],db=b-c[2];const d=dr*dr*2+dg*dg*3+db*db;if(d<dist){dist=d;best=j;if(!d)break;}}idx=best;cache[key]=idx;}
+    const color=(r<<16)|(g<<8)|b;
+    if(idx<0||cachedColors[key]!==color){let best=0,dist=Infinity;for(let j=0;j<palette.length;j++){const c=palette[j],dr=r-c[0],dg=g-c[1],db=b-c[2];const d=dr*dr*2+dg*dg*3+db*db;if(d<dist){dist=d;best=j;if(!d)break;}}idx=best;cache[key]=idx;cachedColors[key]=color;}
     out[i]=idx;
   }
   return out;
@@ -60,6 +64,7 @@ export function applyPaletteDither(rgba, palette, width, amount = 6) {
   const out = new Uint8Array(rgba.length / 4);
   const cache = new Int16Array(65536);
   cache.fill(-1);
+  const cachedColors = new Uint32Array(cache.length);
   const amp = Math.max(0, Math.min(18, Number(amount) || 0));
   for (let p = 0, i = 0; p < rgba.length; p += 4, i++) {
     const x = i % width;
@@ -71,7 +76,8 @@ export function applyPaletteDither(rgba, palette, width, amount = 6) {
     const b = Math.max(0, Math.min(255, Math.round(rgba[p + 2] + delta)));
     const key = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
     let idx = cache[key];
-    if (idx < 0) {
+    const color = (r << 16) | (g << 8) | b;
+    if (idx < 0 || cachedColors[key] !== color) {
       let best = 0, dist = Infinity;
       for (let j = 0; j < palette.length; j++) {
         const c = palette[j], dr = r - c[0], dg = g - c[1], db = b - c[2];
@@ -81,6 +87,7 @@ export function applyPaletteDither(rgba, palette, width, amount = 6) {
       }
       idx = best;
       cache[key] = idx;
+      cachedColors[key] = color;
     }
     out[i] = idx;
   }
