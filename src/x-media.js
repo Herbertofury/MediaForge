@@ -56,17 +56,20 @@
     return area * 1e7 + (v.bitrate || 0);
   }
 
-  function chooseBestVariant(variants) {
-    if (!Array.isArray(variants)) return null;
-    let best = null;
-    const seen = new Set();
-    for (const raw of variants) {
-      const v = normalizeVideoVariant(raw);
-      if (!v || seen.has(v.url)) continue;
-      seen.add(v.url);
-      if (!best || variantScore(v) > variantScore(best)) best = v;
+  function normalizedVariants(variants) {
+    const byUrl = new Map();
+    for (const raw of Array.isArray(variants) ? variants : []) {
+      const variant = normalizeVideoVariant(raw);
+      if (!variant) continue;
+      const previous = byUrl.get(variant.url);
+      // Duplicate identity must not discard richer later quality evidence.
+      if (!previous || variantScore(variant) > variantScore(previous)) byUrl.set(variant.url, variant);
     }
-    return best;
+    return [...byUrl.values()].sort((a, b) => variantScore(b) - variantScore(a));
+  }
+
+  function chooseBestVariant(variants) {
+    return normalizedVariants(variants)[0] || null;
   }
 
   function photoPath(url) {
@@ -160,17 +163,8 @@
       };
     }
 
-    const rawVariants = collectVariantLists(entity);
-    const variants = [];
-    const seen = new Set();
-    for (const raw of rawVariants) {
-      const v = normalizeVideoVariant(raw);
-      if (!v || seen.has(v.url)) continue;
-      seen.add(v.url);
-      variants.push(v);
-    }
+    const variants = normalizedVariants(collectVariantLists(entity));
     if (!variants.length) return null;
-    variants.sort((a, b) => variantScore(b) - variantScore(a));
     const best = variants[0];
     const animated = typeRaw === 'animated_gif' || typeRaw === 'gif';
     return {
@@ -244,14 +238,7 @@
       return existing;
     }
     const all = [...(existing.variants || []), ...(incoming.variants || [])];
-    const map = new Map();
-    for (const v of all) {
-      const n = normalizeVideoVariant(v);
-      if (!n) continue;
-      const old = map.get(n.url);
-      if (!old || variantScore(n) > variantScore(old)) map.set(n.url, n);
-    }
-    const variants = [...map.values()].sort((a, b) => variantScore(b) - variantScore(a));
+    const variants = normalizedVariants(all);
     const best = variants[0] || existing;
     return {
       ...existing,
