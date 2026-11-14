@@ -233,7 +233,16 @@
 
   function mergeRecord(existing, incoming) {
     if (!existing) return incoming;
-    if (existing.type === 'photo') return existing;
+    if (existing.type === 'photo') {
+      // Deduplication must still enrich a sparse record. Keep dimensions paired
+      // and retain the best known original size regardless of traversal order.
+      const area = (record) => Number.isFinite(record.width) && Number.isFinite(record.height)
+        && record.width > 0 && record.height > 0 ? record.width * record.height : 0;
+      if (incoming.type === 'photo' && area(incoming) > area(existing)) {
+        return { ...existing, width: incoming.width, height: incoming.height };
+      }
+      return existing;
+    }
     const all = [...(existing.variants || []), ...(incoming.variants || [])];
     const map = new Map();
     for (const v of all) {
