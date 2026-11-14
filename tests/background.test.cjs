@@ -34,3 +34,19 @@ test('merges duplicate records without losing richer metadata', () => {
   assert.equal(merged.position, 3);
   assert.deepEqual(new Set(merged.sources), new Set(['img','css']));
 });
+
+test('data URL metadata matches actual decoded binary, Unicode and parameterized payloads', async () => {
+  for (const url of [
+    'data:application/octet-stream,%FF%00%80',
+    'data:text/plain;charset=utf-8,%E2%82%AC',
+    'data:text/plain,é%FF%20hello',
+    'data:text/plain;charset=utf-8;base64,SGVsbG8%3D'
+  ]) {
+    const response = await fetch(url);
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    const metadata = B.dataUrlMeta(url);
+    assert.ok(metadata, url);
+    assert.equal(metadata.sizeBytes, bytes.byteLength, url);
+    assert.equal(metadata.mime, response.headers.get('content-type').split(';')[0]);
+  }
+});

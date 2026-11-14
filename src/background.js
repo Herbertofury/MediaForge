@@ -154,17 +154,18 @@ async function startBatch(items, options = {}) {
 }
 
 function dataUrlMeta(raw) {
-  const m = String(raw || '').match(/^data:([^;,]*)(;base64)?,(.*)$/s);
+  const m = String(raw || '').match(/^data:([^,]*),(.*)$/s);
   if (!m) return null;
-  const mime = m[1] || 'text/plain';
+  const mime = m[1].split(';')[0] || 'text/plain';
   let sizeBytes = 0;
-  if (m[2]) {
-    const payload = m[3].replace(/\s/g, '');
+  if (/;base64$/i.test(m[1])) {
+    const payload = m[2].replace(/%([0-9a-f]{2})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16))).replace(/\s/g, '');
     const padding = (payload.match(/=+$/) || [''])[0].length;
     sizeBytes = Math.max(0, Math.floor(payload.length * 3 / 4) - padding);
   } else {
-    try { sizeBytes = new TextEncoder().encode(decodeURIComponent(m[3])).byteLength; }
-    catch (_) { sizeBytes = new TextEncoder().encode(m[3]).byteLength; }
+    // Percent escapes represent individual bytes, not necessarily valid UTF-8.
+    // Count each escaped octet once and UTF-8 encode only literal characters.
+    sizeBytes = new TextEncoder().encode(m[2].replace(/%[0-9a-f]{2}/gi, 'x')).byteLength;
   }
   return { ok: true, sizeBytes, mime, method: 'data' };
 }
