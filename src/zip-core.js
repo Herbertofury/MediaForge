@@ -19,9 +19,12 @@
 
   function sanitizePath(raw, fallback = 'media.bin') {
     const parts = String(raw || '')
+      // Compatibility normalization can introduce path separators. Do it before
+      // splitting so fullwidth slash/backslash cannot hide traversal segments.
+      .normalize('NFKC')
       .replace(/\\/g, '/')
       .split('/')
-      .map((part) => part.normalize('NFKC').replace(/[<>:"|?*\u0000-\u001f\u007f]/g, '_').replace(/[. ]+$/g, '').trim())
+      .map((part) => part.replace(/[<>:"|?*\u0000-\u001f\u007f]/g, '_').replace(/[. ]+$/g, '').trim())
       .filter((part) => part && part !== '.' && part !== '..');
     return (parts.join('/') || fallback).slice(0, 240);
   }
