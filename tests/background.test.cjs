@@ -231,3 +231,20 @@ test('stalled RANGE fallback aborts without losing successful HEAD evidence', as
   assert.equal(result.ok, true);assert.equal(result.sizeBytes, 12345);assert.equal(result.method, 'HEAD');
   assert.deepEqual(budgets, [15000, 15000]);
 });
+
+test('base64 data metadata agrees with Fetch rejection and forgiving decoding', async () => {
+  const invalid = ['!', 'A', 'AA=', 'A===', 'AA===', 'AA==AA==', 'AA%0B==', 'AA%FF==', 'AA-_'];
+  for (const payload of invalid) {
+    const url = `data:application/octet-stream;base64,${payload}`;
+    await assert.rejects(fetch(url), undefined, payload);
+    assert.equal(B.dataUrlMeta(url), null, payload);
+    assert.equal((await B.probeMedia(url)).ok, false, payload);
+  }
+  for (const payload of ['', 'AA', 'AAA', 'AAAA', 'AA==', 'AAA=', 'A%20A%09%0C==', '%2B%2F8=']) {
+    const url = `data:application/octet-stream;base64,${payload}`;
+    const bytes = await (await fetch(url)).arrayBuffer();
+    const meta = B.dataUrlMeta(url);
+    assert.equal(meta.ok, true, payload);
+    assert.equal(meta.sizeBytes, bytes.byteLength, payload);
+  }
+});
