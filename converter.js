@@ -6,6 +6,8 @@ const statusEl=document.getElementById('status'), fill=document.getElementById('
 const video=document.getElementById('video'), canvas=document.getElementById('canvas'), ctx=canvas.getContext('2d',{alpha:false,willReadFrequently:true,desynchronized:true});
 const jobId=decodeURIComponent(location.hash.slice(1));
 let currentDownloadId=null;
+// GIF graphic-control delay is an unsigned 16-bit centisecond value.
+const MAX_GIF_FRAME_DELAY_MS = 65535 * 10;
 const MAX_SAFE_GIF_BYTES = Math.floor(3.75 * 1024 * 1024 * 1024);
 
 function setProgress(p,msg){p=Math.max(0,Math.min(100,p||0));fill.style.width=`${p}%`;step.textContent=`${Math.round(p)}%`;if(msg)detail.textContent=msg;try{chrome.runtime.sendMessage({type:'mfgx:gifProgress',jobId,progress:p,detail:msg});}catch{}}
@@ -98,7 +100,9 @@ async function run(){
     const rgba=ctx.getImageData(0,0,width,height).data;
     const frameDelay=delayMillisecondsForFrame(i,fps);
 
-    if(pendingRgba && sameFrameBytes(pendingRgba,rgba)){
+    // Flush an identical frame before its hold duration would wrap on disk.
+    // This preserves long static scenes without changing their pixels/timing.
+    if(pendingRgba && pendingDelay+frameDelay<=MAX_GIF_FRAME_DELAY_MS && sameFrameBytes(pendingRgba,rgba)){
       pendingDelay+=frameDelay;
       duplicateFrames++;
     }else{
