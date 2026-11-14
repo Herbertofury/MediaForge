@@ -170,9 +170,13 @@ function dataUrlMeta(raw) {
   const mime = m[1].split(';')[0] || 'text/plain';
   let sizeBytes = 0;
   if (/;base64$/i.test(m[1])) {
-    const payload = m[2].replace(/%([0-9a-f]{2})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16))).replace(/\s/g, '');
-    const padding = (payload.match(/=+$/) || [''])[0].length;
-    sizeBytes = Math.max(0, Math.floor(payload.length * 3 / 4) - padding);
+    let payload = m[2].replace(/%([0-9a-f]{2})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+      .replace(/[\t\n\f\r ]/g, '');
+    // Match Infra forgiving-base64 decoding without allocating decoded bytes:
+    // https://infra.spec.whatwg.org/#forgiving-base64-decode
+    if (payload.length % 4 === 0) payload = payload.replace(/={1,2}$/, '');
+    if (payload.length % 4 === 1 || /[^A-Za-z0-9+/]/.test(payload)) return null;
+    sizeBytes = Math.floor(payload.length * 3 / 4);
   } else {
     // Percent escapes represent individual bytes, not necessarily valid UTF-8.
     // Count each escaped octet once and UTF-8 encode only literal characters.
