@@ -94,3 +94,32 @@ for (const richFirst of [true, false]) {
     assert.match(out[0].url, /1280x720/);
   });
 }
+
+for (const richFirst of [true, false]) {
+  test(`duplicate photos retain discovered original dimensions (rich first: ${richFirst})`, () => {
+    const sparse = { type: 'photo', media_key: '3_photo', media_url_https: 'https://pbs.twimg.com/media/PHOTO.jpg' };
+    const rich = { ...sparse, original_info: { width: 2048, height: 1365 } };
+    const records = (richFirst ? [rich, sparse] : [sparse, rich]).map(photo => ({
+      rest_id: '123456789', legacy: { entities: { media: [photo] } }
+    }));
+    const out = X.collectMedia(records);
+    assert.equal(out.length, 1);
+    assert.equal(out[0].width, 2048);
+    assert.equal(out[0].height, 1365);
+    assert.equal(X.qualityLabel(out[0]), '2048×1365');
+    assert.equal(new URL(out[0].url).searchParams.get('name'), 'orig');
+  });
+}
+
+test('photo enrichment keeps dimension pairs and never downgrades known size', () => {
+  const photos = [
+    { width: 640, height: 480 }, { width: 2048, height: 1365 },
+    { width: 1280, height: 720 }, { width: 9999, height: 0 }
+  ].map(original_info => ({
+    type: 'photo', media_key: '3_photo', original_info,
+    media_url_https: 'https://pbs.twimg.com/media/PHOTO.jpg'
+  }));
+  const out = X.collectMedia({ rest_id: '123456789', entities: { media: photos } });
+  assert.equal(out.length, 1);
+  assert.deepEqual([out[0].width, out[0].height], [2048, 1365]);
+});
