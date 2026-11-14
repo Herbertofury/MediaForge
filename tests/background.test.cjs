@@ -187,3 +187,47 @@ test('metadata probe accepts a case-insensitive data scheme without fetching', a
   const result = await B.probeMedia('DATA:text/plain,hello#view');
   assert.equal(result.ok, true);assert.equal(result.sizeBytes, 5);assert.equal(result.method, 'data');
 });
+
+test('stalled HEAD probes abort and release their single-flight slot', async (t) => {
+  const budgets = [];let now = 100000, calls = 0;
+  t.mock.method(Date, 'now', () => now);
+  t.mock.method(AbortSignal, 'timeout', (ms) => {
+    budgets.push(ms);const c = new AbortController();
+    queueMicrotask(() => c.abort(new DOMException('Probe timed out', 'TimeoutError')));
+    return c.signal;
+  });
+  t.mock.method(globalThis, 'fetch', async (_url, options) => {
+    if (++calls > 1) return new Response(null, { headers: { 'content-length': '42', 'content-type': 'image/png' } });
+    if (!options.signal) throw new Error('No request deadline');
+    return new Promise((resolve, reject) => {
+      if (options.signal.aborted) reject(options.signal.reason);
+      else options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true });
+    });
+  });
+  const result = await B.probeMedia('https://example.test/stalled-head');
+  assert.equal(result.ok, false);assert.match(result.error, /Probe timed out/);
+  assert.deepEqual(budgets, [15000]);
+  now += 15000;
+  const recovered = await B.probeMedia('https://example.test/stalled-head');
+  assert.equal(recovered.ok, true);assert.equal(recovered.sizeBytes, 42);assert.equal(calls, 2);
+});
+
+test('stalled RANGE fallback aborts without losing successful HEAD evidence', async (t) => {
+  const budgets = [];
+  t.mock.method(AbortSignal, 'timeout', (ms) => {
+    budgets.push(ms);const c = new AbortController();
+    queueMicrotask(() => c.abort(new DOMException('Probe timed out', 'TimeoutError')));
+    return c.signal;
+  });
+  t.mock.method(globalThis, 'fetch', async (_url, options) => {
+    if (options.method === 'HEAD') return new Response(null, { headers: { 'content-length': '12345' } });
+    if (!options.signal) throw new Error('No request deadline');
+    return new Promise((resolve, reject) => {
+      if (options.signal.aborted) reject(options.signal.reason);
+      else options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true });
+    });
+  });
+  const result = await B.probeMedia('https://example.test/stalled-range');
+  assert.equal(result.ok, true);assert.equal(result.sizeBytes, 12345);assert.equal(result.method, 'HEAD');
+  assert.deepEqual(budgets, [15000, 15000]);
+});

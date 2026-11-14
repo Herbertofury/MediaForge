@@ -19,6 +19,7 @@ const WIN_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i;
 const META_CACHE_TTL = 20 * 60 * 1000;
 const META_CACHE_MAX = 2500;
 const TRANSPORT_ERROR_TTL = 15 * 1000;
+const META_REQUEST_TIMEOUT = 15 * 1000;
 const metaCacheTtl = (value) => !value.ok && !value.status ? TRANSPORT_ERROR_TTL : META_CACHE_TTL;
 const metaCache = new Map();
 const metaInflight = new Map();
@@ -218,12 +219,13 @@ async function probeMedia(rawUrl) {
   const work = (async () => {
     let value = null;
     try {
-      const head = await fetch(url, { method: 'HEAD', credentials: 'include', cache: 'default', redirect: 'follow' });
+      const head = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(META_REQUEST_TIMEOUT), credentials: 'include', cache: 'default', redirect: 'follow' });
       value = parseRemoteMeta(head, 'HEAD');
       if (!value?.sizeBytes || !value?.mime) {
         try {
           const range = await fetch(url, {
             method: 'GET',
+            signal: AbortSignal.timeout(META_REQUEST_TIMEOUT),
             headers: { Range: 'bytes=0-0' },
             credentials: 'include',
             cache: 'default',
