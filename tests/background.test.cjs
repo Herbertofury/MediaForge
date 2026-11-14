@@ -77,3 +77,24 @@ test('range metadata never mistakes a partial response length for whole-media si
     assert.equal(meta(200, { 'content-length': length }).sizeBytes, null);
   }
 });
+
+test('duplicate discovery keeps dimensions from one observation rather than inventing a square', () => {
+  const landscape = { url: 'https://example.test/a.jpg', width: 1920, height: 1080, source: 'img' };
+  const portrait = { ...landscape, width: 1080, height: 1920, source: 'css' };
+  const merged = B.mergeRecord(landscape, portrait);
+  assert.deepEqual([merged.width, merged.height], [1080, 1920]);
+  assert.deepEqual(new Set(merged.sources), new Set(['img', 'css']));
+  assert.deepEqual([B.mergeRecord(portrait, landscape).width, B.mergeRecord(portrait, landscape).height], [1920, 1080]);
+});
+
+test('dimension enrichment prefers complete pairs and never combines partial observations', () => {
+  const full = { width: 1280, height: 720 };
+  for (const sparse of [{ width: 9999 }, {}, { width: Infinity, height: 9000 }, { width: -1, height: 9000 }]) {
+    for (const [a, b] of [[full, sparse], [sparse, full]]) {
+      const result = B.mergeRecord(a, b);
+      assert.deepEqual([result.width, result.height], [1280, 720]);
+    }
+  }
+  const partial = B.mergeRecord({ width: 640 }, { height: 480 });
+  assert.deepEqual([partial.width, partial.height], [null, 480]);
+});
