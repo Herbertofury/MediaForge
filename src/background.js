@@ -222,13 +222,18 @@ async function probeMedia(rawUrl) {
           });
           const ranged = parseRemoteMeta(range, 'RANGE');
           try { await range.body?.cancel(); } catch (_) {}
-          value = {
-            ...(value || {}),
-            ...(ranged || {}),
-            sizeBytes: ranged?.sizeBytes || value?.sizeBytes || null,
-            mime: ranged?.mime || value?.mime || null,
-            ok: Boolean(ranged?.ok || value?.ok)
-          };
+          // A failed fallback describes an error document, not the media.
+          // Preserve successful HEAD evidence rather than mixing the two.
+          if (ranged?.ok || !value?.ok) {
+            const previous = value?.ok ? value : {};
+            value = {
+              ...previous,
+              ...(ranged || {}),
+              sizeBytes: ranged?.sizeBytes ?? previous.sizeBytes ?? null,
+              mime: ranged?.mime || previous.mime || null,
+              ok: Boolean(ranged?.ok || value?.ok)
+            };
+          }
         } catch (_) {}
       }
     } catch (error) {
@@ -489,6 +494,7 @@ if (typeof module === 'object' && module.exports) {
     isDownloadableUrl,
     dataUrlMeta,
     parseRemoteMeta,
+    probeMedia,
     mergeRecord
   };
 }

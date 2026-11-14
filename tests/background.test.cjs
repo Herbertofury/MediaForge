@@ -98,3 +98,43 @@ test('dimension enrichment prefers complete pairs and never combines partial obs
   const partial = B.mergeRecord({ width: 640 }, { height: 480 });
   assert.deepEqual([partial.width, partial.height], [null, 480]);
 });
+
+test('failed range fallback cannot replace successful HEAD metadata with error-page metadata', async (t) => {
+  const calls = [];
+  let cancelled = false;
+  t.mock.method(globalThis, 'fetch', async (_url, options) => {
+    calls.push(options.method);
+    if (options.method === 'HEAD') return new Response(null, { headers: { 'content-length': '12345' } });
+    return { ok: false, status: 403, headers: new Headers({ 'content-length': '9', 'content-type': 'text/html' }), body: { cancel: async () => { cancelled = true; } } };
+  });
+  const result = await B.probeMedia('https://example.test/preserve-head-metadata');
+  assert.equal(result.ok, true);
+  assert.equal(result.status, 200);
+  assert.equal(result.method, 'HEAD');
+  assert.equal(result.sizeBytes, 12345);
+  assert.equal(result.mime, null);
+  assert.equal(cancelled, true);
+  assert.deepEqual(calls, ['HEAD', 'GET']);
+});
+
+test('successful range fallback still enriches incomplete HEAD evidence', async (t) => {
+  t.mock.method(globalThis, 'fetch', async (_url, options) => options.method === 'HEAD'
+    ? new Response(null, { headers: { 'content-length': '12345' } })
+    : new Response(null, { status: 206, headers: { 'content-range': 'bytes 0-0/12345', 'content-length': '1', 'content-type': 'video/mp4' } }));
+  const result = await B.probeMedia('https://example.test/enrich-head-metadata');
+  assert.equal(result.ok, true);
+  assert.equal(result.status, 206);
+  assert.equal(result.method, 'RANGE');
+  assert.equal(result.sizeBytes, 12345);
+  assert.equal(result.mime, 'video/mp4');
+});
+
+test('successful fallback does not inherit the failed HEAD error MIME type', async (t) => {
+  t.mock.method(globalThis, 'fetch', async (_url, options) => options.method === 'HEAD'
+    ? new Response(null, { status: 405, headers: { 'content-type': 'text/html' } })
+    : new Response(null, { status: 206, headers: { 'content-range': 'bytes 0-0/12345' } }));
+  const result = await B.probeMedia('https://example.test/no-error-mime');
+  assert.equal(result.ok, true);
+  assert.equal(result.sizeBytes, 12345);
+  assert.equal(result.mime, null);
+});
