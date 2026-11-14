@@ -69,9 +69,17 @@
     return best;
   }
 
+  function photoPath(url) {
+    // Legacy X photo URLs encode rendition size after the extension. Keep this
+    // normalization host/path scoped so unrelated filenames retain identity.
+    if (!PHOTO_HOSTS.has(url.hostname.toLowerCase()) || !url.pathname.startsWith('/media/')) return url.pathname;
+    return url.pathname.replace(/(\.[a-z0-9]{2,6}):(?:small|medium|large|orig|thumb)$/i, '$1');
+  }
+
   function originalPhotoUrl(raw) {
     const u = safeUrl(raw, 'https://pbs.twimg.com/');
     if (!u || u.protocol !== 'https:' || !PHOTO_HOSTS.has(u.hostname.toLowerCase())) return null;
+    u.pathname = photoPath(u);
     let fmt = u.searchParams.get('format');
     const dot = u.pathname.lastIndexOf('.');
     if (dot > u.pathname.lastIndexOf('/')) {
@@ -88,7 +96,7 @@
     if (!u) return fallback || 'bin';
     const fmt = u.searchParams.get('format');
     if (fmt && /^[a-z0-9]{2,6}$/i.test(fmt)) return fmt.toLowerCase();
-    const m = u.pathname.match(/\.([a-z0-9]{2,6})$/i);
+    const m = photoPath(u).match(/\.([a-z0-9]{2,6})$/i);
     return m ? m[1].toLowerCase() : (fallback || 'bin');
   }
 
@@ -108,7 +116,8 @@
   function mediaKey(raw) {
     const u = safeUrl(raw, 'https://pbs.twimg.com/');
     if (!u) return null;
-    let seg = u.pathname.slice(u.pathname.lastIndexOf('/') + 1);
+    const pathname = photoPath(u);
+    let seg = pathname.slice(pathname.lastIndexOf('/') + 1);
     if (!seg) return null;
     seg = seg.replace(/\.[a-z0-9]{2,6}$/i, '');
     return seg || null;

@@ -52,3 +52,23 @@ test('collects photo, video and animated gif from nested X payload', () => {
 test('rejects non-twimg video variants', () => {
   assert.equal(X.normalizeVideoVariant({content_type:'video/mp4',url:'https://evil.example/video.mp4'}), null);
 });
+
+test('normalizes legacy X photo size suffixes without corrupting format or identity', () => {
+  for (const size of ['small','large','orig','thumb','medium']) {
+    const raw=`https://pbs.twimg.com/media/ABC123.jpg:${size}`;
+    const parsed=new URL(X.originalPhotoUrl(raw));
+    assert.equal(parsed.pathname,'/media/ABC123');
+    assert.equal(parsed.searchParams.get('format'),'jpg');
+    assert.equal(parsed.searchParams.get('name'),'orig');
+    assert.equal(X.mediaKey(raw),'ABC123');
+    assert.equal(X.fileExt(raw,'bin'),'jpg');
+  }
+});
+
+test('legacy photo normalization keeps query format precedence and stays scoped', () => {
+  const u=new URL(X.originalPhotoUrl('https://pbs.twimg.com/media/ABC123.jpg:large?format=png&name=small'));
+  assert.equal(u.searchParams.get('format'),'png');
+  assert.equal(X.mediaKey('https://example.com/media/ABC123.jpg:large'),'ABC123.jpg:large');
+  assert.equal(X.fileExt('https://example.com/media/ABC123.jpg:large','bin'),'bin');
+  assert.equal(X.mediaKey('https://pbs.twimg.com/media/ABC123.jpg:custom'),'ABC123.jpg:custom');
+});
