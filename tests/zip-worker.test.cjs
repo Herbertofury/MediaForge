@@ -96,3 +96,12 @@ for(const failure of ['missing','query'])test(`unverified download fails explici
  assert.equal(result.messages.find(m=>m.type==='mfgx:zipDone').ok,false);
  assert.equal(result.listeners.size,0);assert.deepEqual(result.revoked,['blob:fixture']);
 });
+
+test('length-capped paths remain file entries with every selected byte',async()=>{
+ const selected=records.map((r,i)=>({...r,filename:'a'.repeat(239)+`/file-${i}.txt`}));
+ const result=await runWorker(selected,async url=>({ok:true,arrayBuffer:async()=>Uint8Array.of(url.endsWith('/one')?1:2).buffer}));
+ const entries=archiveEntries(new Uint8Array(await result.blobs[0].arrayBuffer()));
+ assert.equal(entries.length,2);assert.equal(new Set(entries.map(e=>e.name)).size,2);
+ assert.ok(entries.every(e=>e.name.length<=240&&!e.name.endsWith('/')&&!e.name.split('/').some(p=>p==='.'||p==='..')));
+ assert.deepEqual(entries.map(e=>e.data),[[1],[2]]);
+});
