@@ -358,11 +358,18 @@ async function scanTab(tabId) {
   finally { if (tabScanInflight.get(tabId) === task) tabScanInflight.delete(tabId); }
 }
 
-async function putJob(prefix, job) {
+async function openJob(prefix, job, page) {
   const key = `${prefix}:${job.id}`;
   const area = chrome.storage.session || chrome.storage.local;
   await area.set({ [key]: job });
-  return key;
+  try {
+    return await chrome.tabs.create({ url: chrome.runtime.getURL(`${page}#${encodeURIComponent(job.id)}`), active: false });
+  } catch (error) {
+    // No worker tab can consume this job. Remove only this attempt's payload,
+    // retaining the original failure even if storage cleanup also fails.
+    try { await area.remove(key); } catch (_) {}
+    throw error;
+  }
 }
 
 async function queueGif(rec, sender, options = {}) {
@@ -381,9 +388,7 @@ async function queueGif(rec, sender, options = {}) {
     sourceTabId: sender?.tab?.id ?? options.sourceTabId ?? null,
     createdAt: Date.now()
   };
-  await putJob('gifJob', job);
-  const url = chrome.runtime.getURL(`converter.html#${encodeURIComponent(id)}`);
-  const tab = await chrome.tabs.create({ url, active: false });
+  const tab = await openJob('gifJob', job, 'converter.html');
   return { ok: true, queued: true, jobId: id, converterTabId: tab.id };
 }
 
@@ -402,8 +407,7 @@ async function queueZip(records, options = {}) {
     saveAs: Boolean(options.saveAs ?? settings.saveAs),
     createdAt: Date.now()
   };
-  await putJob('zipJob', job);
-  const tab = await chrome.tabs.create({ url: chrome.runtime.getURL(`zipper.html#${encodeURIComponent(id)}`), active: false });
+  const tab = await openJob('zipJob', job, 'zipper.html');
   return { ok: true, queued: true, jobId: id, zipperTabId: tab.id, count: usable.length };
 }
 
@@ -510,6 +514,8 @@ if (typeof module === 'object' && module.exports) {
     dataUrlMeta,
     parseRemoteMeta,
     probeMedia,
+    queueGif,
+    queueZip,
     mergeRecord
   };
 }
