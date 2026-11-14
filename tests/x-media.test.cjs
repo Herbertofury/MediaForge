@@ -123,3 +123,18 @@ test('photo enrichment keeps dimension pairs and never downgrades known size', (
   assert.equal(out.length, 1);
   assert.deepEqual([out[0].width, out[0].height], [2048, 1365]);
 });
+
+test('duplicate video URLs retain richer quality evidence regardless of discovery order', () => {
+  const sparse = { content_type: 'video/mp4', url: 'https://video.twimg.com/quality.mp4' };
+  const rich = { ...sparse, width: 1920, height: 1080, bitrate: 4000000 };
+  const other = { content_type: 'video/mp4', url: 'https://video.twimg.com/other.mp4', width: 640, height: 360, bitrate: 500000 };
+  for (const list of [[sparse, other, rich], [rich, other, sparse]]) {
+    const best = X.chooseBestVariant(list);
+    assert.equal(best.url, rich.url);
+    assert.equal(best.width, 1920); assert.equal(best.height, 1080);
+    const media = X.normalizeMediaEntity({ type: 'video', video_info: { variants: list.slice(0, 2) }, media_info: { variants: list.slice(2) } }, { tweetId: '123456', handle: 'test' }, 1);
+    assert.equal(media.url, rich.url);
+    assert.equal(media.variants.length, 2);
+    assert.equal(media.variants[0].bitrate, 4000000);
+  }
+});
