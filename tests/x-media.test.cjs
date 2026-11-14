@@ -72,3 +72,25 @@ test('legacy photo normalization keeps query format precedence and stays scoped'
   assert.equal(X.fileExt('https://example.com/media/ABC123.jpg:large','bin'),'bin');
   assert.equal(X.mediaKey('https://pbs.twimg.com/media/ABC123.jpg:custom'),'ABC123.jpg:custom');
 });
+
+for (const richFirst of [true, false]) {
+  test(`duplicate video records preserve known duration (rich first: ${richFirst})`, () => {
+    const entity = (duration, resolution) => ({
+      type: 'video', media_key: '7_shared',
+      video_info: { ...(duration ? { duration_millis: duration } : {}), variants: [{
+        content_type: 'video/mp4',
+        url: `https://video.twimg.com/ext_tw_video/123456/pu/vid/${resolution}/clip.mp4`
+      }] }
+    });
+    const rich = entity(5000, '640x360');
+    const sparse = entity(0, '1280x720');
+    const nodes = (richFirst ? [rich, sparse] : [sparse, rich]).map(media => ({
+      rest_id: '123456789', legacy: { extended_entities: { media: [media] } }
+    }));
+    const out = X.collectMedia(nodes);
+    assert.equal(out.length, 1);
+    assert.equal(out[0].durationMs, 5000);
+    assert.equal(out[0].variants.length, 2);
+    assert.match(out[0].url, /1280x720/);
+  });
+}

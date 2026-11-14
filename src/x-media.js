@@ -252,6 +252,8 @@
       width: best.width || incoming.width || existing.width || 0,
       height: best.height || incoming.height || existing.height || 0,
       bitrate: best.bitrate || incoming.bitrate || existing.bitrate || 0,
+      // Sparse duplicate entities must not erase previously discovered duration.
+      durationMs: incoming.durationMs || existing.durationMs || 0,
       thumb: existing.thumb || incoming.thumb || '',
       type: existing.type === 'gif' || incoming.type === 'gif' ? 'gif' : 'video'
     };
