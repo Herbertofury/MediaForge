@@ -96,12 +96,16 @@ async function run(){
   statusEl.textContent=`Maximum-quality GIF · ${frameCount.toLocaleString()} samples · ${width}×${height}`;
   const started=performance.now();
 
-  for(let i=0;i<frameCount;i++){
+  // The last sample may cover less than a full FPS interval. Preserve the
+  // source duration at GIF centisecond precision, with a minimum one tick.
+  let remainingDelayMs=Math.max(1,Math.round(duration*100))*10;
+  for(let i=0;i<frameCount && remainingDelayMs>0;i++){
     const t=Math.min(Math.max(0,duration-0.0005),i/fps);
     await seekDecoded(t);
     ctx.drawImage(video,0,0,width,height);
     const rgba=ctx.getImageData(0,0,width,height).data;
-    const frameDelay=delayMillisecondsForFrame(i,fps);
+    const frameDelay=Math.min(delayMillisecondsForFrame(i,fps),remainingDelayMs);
+    remainingDelayMs-=frameDelay;
 
     // Flush an identical frame before its hold duration would wrap on disk.
     // This preserves long static scenes without changing their pixels/timing.

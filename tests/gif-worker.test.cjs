@@ -3,14 +3,14 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 
-async function worker(state='complete',duration=.1,captureFailure=false){
+async function worker(state='complete',duration=.1,captureFailure=false,changingFrames=false){
  const {GIFEncoder}=await import('../vendor/gifenc/gifenc.mjs');
  const quantize=await import('../src/quantize.mjs'),utils=await import('../src/gif-utils.mjs');
  const messages=[],revoked=[],blobs=[],listeners=new Set(),events=new Map();
  const elements=Object.fromEntries(['status','fill','step','detail'].map(id=>[id,{textContent:'',style:{},classList:{add(){}}}]));
  let currentTime=0;
  const video={duration,readyState:2,get currentTime(){return currentTime;},set currentTime(value){currentTime=value;queueMicrotask(()=>events.get('seeked')?.());},videoWidth:1,videoHeight:1,addEventListener:(n,f)=>events.set(n,f),removeEventListener:n=>events.delete(n),set src(value){queueMicrotask(()=>events.get('loadedmetadata')?.());}};
- elements.video=video;elements.canvas={getContext:()=>({drawImage(){},getImageData:()=>{if(captureFailure)throw new Error('Frame capture failed');return {data:Uint8Array.of(255,0,0,255)};}})};
+ elements.video=video;elements.canvas={getContext:()=>({drawImage(){},getImageData:()=>{if(captureFailure)throw new Error('Frame capture failed');return {data:Uint8Array.of(changingFrames?Math.round(currentTime*100):255,0,0,255)};}})};
  let finish;const done=new Promise(resolve=>finish=resolve);let count=0;
  const context={...quantize,...utils,GIFEncoder,document:{getElementById:id=>elements[id]},location:{hash:'#gif-fixture'},Blob,performance,Uint8Array,
  fetch:async()=>({ok:true,blob:async()=>new Blob(['source fixture'])}),
@@ -77,4 +77,18 @@ test('frame extraction failure releases source without creating output',async()=
  assert.equal(result.blobs.length,1);
  assert.deepEqual(result.revoked,['blob:1']);
  assert.equal(result.listeners.size,0);
+});
+
+for(const duration of [.001,.1,.21,.401,1.23])test(`GIF preserves fractional source duration ${duration}s`,async()=>{
+ const result=await worker('complete',duration);
+ assert.equal(result.messages.find(m=>m.type==='mfgx:gifDone').ok,true);
+ const delays=gifDelays(Buffer.from(await result.blobs[1].arrayBuffer()));
+ assert.equal(delays.reduce((sum,n)=>sum+n,0),Math.max(1,Math.round(duration*100)));
+ assert.ok(delays.every(n=>n>0&&n<=65535));
+});
+test('changing-frame GIF keeps its final partial interval without stretching it',async()=>{
+ const result=await worker('complete',.21,false,true);
+ const delays=gifDelays(Buffer.from(await result.blobs[1].arrayBuffer()));
+ assert.deepEqual(delays,[20,1]);
+ assert.equal(result.messages.find(m=>m.type==='mfgx:gifDone').uniqueFrames,2);
 });
