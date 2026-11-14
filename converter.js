@@ -49,6 +49,28 @@ function encodePending(encoder, rgba, width, height, delayMs, quality){
   encoder.writeFrame(index,width,height,{palette,delay:delayMs,repeat:0,dispose:1});
 }
 
+function waitForDownload(downloadId){
+  return new Promise((resolve,reject)=>{
+    let settled=false;
+    function finish(error){
+      if(settled)return;settled=true;
+      chrome.downloads.onChanged.removeListener(onChanged);
+      if(error)reject(error);else resolve();
+    }
+    function check(state,error){
+      if(state==='complete')finish();
+      else if(state==='interrupted')finish(new Error(`GIF download interrupted: ${error||'unknown reason'}. Retry the export.`));
+    }
+    function onChanged(delta){if(delta.id===downloadId)check(delta.state?.current,delta.error?.current);}
+    // Subscribe before searching so completion during the snapshot cannot be missed.
+    chrome.downloads.onChanged.addListener(onChanged);
+    chrome.downloads.search({id:downloadId}).then(items=>{
+      if(!items.length)finish(new Error('GIF download is no longer available. Completion could not be verified.'));
+      else check(items[0].state,items[0].error);
+    },finish);
+  });
+}
+
 async function run(){
   if(!jobId)throw new Error('Missing conversion job.');
   const {job}=await loadJob();if(!job)throw new Error('Conversion job expired.');
@@ -105,11 +127,15 @@ async function run(){
   const gifBlob=new Blob(encoder.parts(),{type:'image/gif'});
   if(!gifBlob.size)throw new Error('GIF encoder returned an empty file.');
   const gifUrl=URL.createObjectURL(gifBlob);setProgress(98,'Starting download');
+  try{
   currentDownloadId=await chrome.downloads.download({url:gifUrl,filename:job.filename,saveAs:Boolean(job.saveAs),conflictAction:'uniquify'});
+  statusEl.textContent='Saving GIF…';setProgress(99,'Waiting for browser download completion');
+  await waitForDownload(currentDownloadId);
+  }finally{URL.revokeObjectURL(gifUrl);URL.revokeObjectURL(src);}
   setProgress(100,`${(gifBlob.size/1048576).toFixed(1)} MB · ${uniqueFrames.toLocaleString()} encoded frames · ${duplicateFrames.toLocaleString()} duplicates folded`);
   statusEl.textContent='GIF saved — frame-synchronized, long-video-safe, maximum palette quality.';
   chrome.runtime.sendMessage({type:'mfgx:gifDone',jobId,ok:true,downloadId:currentDownloadId,size:gifBlob.size,filename:job.filename,uniqueFrames,duplicateFrames,quality:quality.name});
   chrome.runtime.sendMessage({type:'mfgx:gifComplete',jobId});
-  setTimeout(()=>{URL.revokeObjectURL(gifUrl);URL.revokeObjectURL(src);closeSelf();},5000);
+  setTimeout(closeSelf,5000);
 }
 run().catch(fail);
