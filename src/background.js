@@ -18,6 +18,8 @@ const DEFAULTS = Object.freeze({
 const WIN_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i;
 const META_CACHE_TTL = 20 * 60 * 1000;
 const META_CACHE_MAX = 2500;
+const TRANSPORT_ERROR_TTL = 15 * 1000;
+const metaCacheTtl = (value) => !value.ok && !value.status ? TRANSPORT_ERROR_TTL : META_CACHE_TTL;
 const metaCache = new Map();
 const metaInflight = new Map();
 const tabScanInflight = new Map();
@@ -193,7 +195,7 @@ function parseRemoteMeta(response, method) {
 
 function trimMetaCache() {
   const now = Date.now();
-  for (const [key, value] of metaCache) if (now - value.at > META_CACHE_TTL) metaCache.delete(key);
+  for (const [key, value] of metaCache) if (now - value.at >= metaCacheTtl(value.value)) metaCache.delete(key);
   while (metaCache.size > META_CACHE_MAX) metaCache.delete(metaCache.keys().next().value);
 }
 
@@ -203,7 +205,7 @@ async function probeMedia(rawUrl) {
   if (!/^https?:/i.test(url)) return { ok: false, url, error: 'Metadata probing supports HTTP(S) and data URLs.' };
 
   const cached = metaCache.get(url);
-  if (cached && Date.now() - cached.at < META_CACHE_TTL) return { ...cached.value, cached: true };
+  if (cached && Date.now() - cached.at < metaCacheTtl(cached.value)) return { ...cached.value, cached: true };
   if (metaInflight.has(url)) return metaInflight.get(url);
 
   const work = (async () => {

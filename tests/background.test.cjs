@@ -138,3 +138,37 @@ test('successful fallback does not inherit the failed HEAD error MIME type', asy
   assert.equal(result.sizeBytes, 12345);
   assert.equal(result.mime, null);
 });
+
+test('transport failures cool down briefly then recover on a new probe without retry storms', async (t) => {
+  let now = 100000, requests = 0;
+  t.mock.method(Date, 'now', () => now);
+  t.mock.method(globalThis, 'fetch', async () => {
+    requests++;
+    if (requests === 1) throw new TypeError('Temporary network failure');
+    return new Response(null, { headers: { 'content-length': '2048', 'content-type': 'image/png' } });
+  });
+  const url = 'https://example.test/recover-transient-network';
+  assert.equal((await B.probeMedia(url)).ok, false);
+  assert.equal((await B.probeMedia(url)).cached, true);
+  assert.equal(requests, 1);
+  now += 15000;
+  const [first, second] = await Promise.all([B.probeMedia(url), B.probeMedia(url)]);
+  assert.equal(first.ok, true);assert.equal(second.ok, true);
+  assert.equal(first.sizeBytes, 2048);assert.equal(requests, 2);
+  now += 60000;
+  assert.equal((await B.probeMedia(url)).cached, true);assert.equal(requests, 2);
+});
+
+test('HTTP denial keeps its existing cache policy rather than gaining transport retries', async (t) => {
+  let now = 200000, requests = 0;
+  t.mock.method(Date, 'now', () => now);
+  t.mock.method(globalThis, 'fetch', async () => {
+    requests++;
+    return new Response(null, { status: 403, headers: { 'content-length': '9', 'content-type': 'text/html' } });
+  });
+  const url = 'https://example.test/cache-denial-unchanged';
+  assert.equal((await B.probeMedia(url)).ok, false);
+  now += 60000;
+  const result = await B.probeMedia(url);
+  assert.equal(result.status, 403);assert.equal(result.cached, true);assert.equal(requests, 1);
+});
