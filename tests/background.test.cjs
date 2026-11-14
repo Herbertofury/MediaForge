@@ -66,3 +66,14 @@ test('filename limits cannot reintroduce trailing dots or spaces', () => {
   assert.equal(B.sanitizeSegment('abc def', 'media', 4), 'abc');
   assert.equal(B.sanitizeFolder('a'.repeat(59) + '.suffix'), 'a'.repeat(59));
 });
+
+test('range metadata never mistakes a partial response length for whole-media size', () => {
+  const meta = (status, headers) => B.parseRemoteMeta(new Response(null, { status, headers }), 'RANGE');
+  assert.equal(meta(206, { 'content-range': 'bytes 0-0/*', 'content-length': '1' }).sizeBytes, null);
+  assert.equal(meta(206, { 'content-length': '1' }).sizeBytes, null);
+  assert.equal(meta(206, { 'content-range': 'bytes 0-0/12345', 'content-length': '1' }).sizeBytes, 12345);
+  assert.equal(meta(200, { 'content-length': '12345' }).sizeBytes, 12345);
+  for (const length of ['-1', 'Infinity', '1.5', '9007199254740992']) {
+    assert.equal(meta(200, { 'content-length': length }).sizeBytes, null);
+  }
+});

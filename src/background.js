@@ -174,12 +174,16 @@ function dataUrlMeta(raw) {
 function parseRemoteMeta(response, method) {
   if (!response) return null;
   const range = response.headers.get('content-range') || '';
-  const rm = range.match(/\/(\d+)$/);
-  const len = Number(rm?.[1] || response.headers.get('content-length') || 0) || 0;
+  const rm = range.match(/^bytes (?:\d+-\d+|\*)\/(\d+)$/i);
+  // Content-Length on a partial response measures the range, not the file.
+  // An unknown/missing range total must remain unknown rather than become 1 B.
+  const rawLength = rm?.[1] || (response.status === 206 ? null : response.headers.get('content-length'));
+  const parsedLength = /^\d+$/.test(rawLength || '') ? Number(rawLength) : NaN;
+  const len = Number.isSafeInteger(parsedLength) && parsedLength >= 0 ? parsedLength : null;
   return {
     ok: response.ok || response.status === 206,
     status: response.status,
-    sizeBytes: len || null,
+    sizeBytes: len,
     mime: (response.headers.get('content-type') || '').split(';')[0] || null,
     etag: response.headers.get('etag') || null,
     modified: response.headers.get('last-modified') || null,
@@ -474,6 +478,7 @@ if (typeof module === 'object' && module.exports) {
     buildFilename,
     isDownloadableUrl,
     dataUrlMeta,
+    parseRemoteMeta,
     mergeRecord
   };
 }
