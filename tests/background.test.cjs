@@ -172,3 +172,18 @@ test('HTTP denial keeps its existing cache policy rather than gaining transport 
   const result = await B.probeMedia(url);
   assert.equal(result.status, 403);assert.equal(result.cached, true);assert.equal(requests, 1);
 });
+
+test('data URL fragments are not counted as payload while escaped hashes and query text are', async () => {
+  for (const url of ['data:text/plain,hello#view', 'data:text/plain,%23hello?x=1#view', 'data:text/plain;base64,SGVsbG8=#view', 'DATA:text/plain,hello']) {
+    const actual = await (await fetch(url)).arrayBuffer();
+    const meta = B.dataUrlMeta(url);
+    assert.ok(meta, url);assert.equal(meta.sizeBytes, actual.byteLength, url);
+  }
+  assert.equal(B.dataUrlMeta('https://example.test/file'), null);
+});
+
+test('metadata probe accepts a case-insensitive data scheme without fetching', async (t) => {
+  t.mock.method(globalThis, 'fetch', () => { throw new Error('Must stay local'); });
+  const result = await B.probeMedia('DATA:text/plain,hello#view');
+  assert.equal(result.ok, true);assert.equal(result.sizeBytes, 5);assert.equal(result.method, 'data');
+});

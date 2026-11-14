@@ -157,7 +157,14 @@ async function startBatch(items, options = {}) {
 }
 
 function dataUrlMeta(raw) {
-  const m = String(raw || '').match(/^data:([^,]*),(.*)$/s);
+  let serialized;
+  try {
+    const url = new URL(String(raw || ''));
+    if (url.protocol !== 'data:') return null;
+    url.hash = ''; // Fragments identify a view, never bytes in the data body.
+    serialized = url.href;
+  } catch (_) { return null; }
+  const m = serialized.match(/^data:([^,]*),(.*)$/s);
   if (!m) return null;
   const mime = m[1].split(';')[0] || 'text/plain';
   let sizeBytes = 0;
@@ -201,7 +208,7 @@ function trimMetaCache() {
 
 async function probeMedia(rawUrl) {
   const url = String(rawUrl || '');
-  if (url.startsWith('data:')) return dataUrlMeta(url) || { ok: false, error: 'Invalid data URL.' };
+  if (/^data:/i.test(url)) return dataUrlMeta(url) || { ok: false, error: 'Invalid data URL.' };
   if (!/^https?:/i.test(url)) return { ok: false, url, error: 'Metadata probing supports HTTP(S) and data URLs.' };
 
   const cached = metaCache.get(url);
