@@ -273,8 +273,18 @@ async function probeBatch(records, concurrency = 6) {
 function mergeRecord(oldRec, nextRec) {
   if (!oldRec) return { ...nextRec };
   const merged = { ...oldRec, ...nextRec };
-  merged.width = Math.max(Number(oldRec.width) || 0, Number(nextRec.width) || 0) || null;
-  merged.height = Math.max(Number(oldRec.height) || 0, Number(nextRec.height) || 0) || null;
+  const dimensions = (record) => {
+    const valid = (value) => Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : null;
+    const width = valid(record.width), height = valid(record.height);
+    return { width, height, area: width && height ? width * height : 0 };
+  };
+  const oldSize = dimensions(oldRec), nextSize = dimensions(nextRec);
+  // Keep aspect ratio coherent: independently taking maxima invents dimensions
+  // that neither discovery lane observed. Complete pairs outrank partial data.
+  const size = oldSize.area > nextSize.area ? oldSize
+    : nextSize.area || nextSize.width || nextSize.height ? nextSize : oldSize;
+  merged.width = size.width;
+  merged.height = size.height;
   merged.sizeBytes = Number(nextRec.sizeBytes) || Number(oldRec.sizeBytes) || null;
   merged.position = Math.min(Number(oldRec.position) || Number.MAX_SAFE_INTEGER, Number(nextRec.position) || Number.MAX_SAFE_INTEGER);
   if (merged.position === Number.MAX_SAFE_INTEGER) merged.position = 0;
