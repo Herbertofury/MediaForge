@@ -26,7 +26,11 @@
       .split('/')
       .map((part) => part.replace(/[<>:"|?*\u0000-\u001f\u007f]/g, '_').replace(/[. ]+$/g, '').trim())
       .filter((part) => part && part !== '.' && part !== '..');
-    return (parts.join('/') || fallback).slice(0, 240);
+    // The cap can cut at a slash or midway through a dot-prefixed component.
+    // Recheck the capped components so file bytes never become a directory entry.
+    return (parts.join('/') || fallback).slice(0, 240)
+      .split('/').map((part) => part.replace(/[. ]+$/g, ''))
+      .filter(Boolean).join('/') || 'media.bin';
   }
 
   function dosDateTime(date = new Date()) {

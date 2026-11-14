@@ -43,3 +43,9 @@ test('emitted ZIP local and central names exclude normalized traversal', async (
   const centralNameLength = view.getUint16(central + 28, true);
   assert.equal(new TextDecoder().decode(bytes.subarray(central + 46, central + 46 + centralNameLength)), 'outside.txt');
 });
+
+test('path length cap cannot create directory-only or traversal entries', () => {
+  assert.equal(Z.sanitizePath('a'.repeat(239) + '/file.txt'), 'a'.repeat(239));
+  assert.equal(Z.sanitizePath('a'.repeat(237) + '/..x'), 'a'.repeat(237));
+  assert.equal(Z.sanitizePath('a'.repeat(238) + '/.hidden'), 'a'.repeat(238));
+});
